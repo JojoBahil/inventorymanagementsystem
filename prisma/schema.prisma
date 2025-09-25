@@ -1,0 +1,347 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model auditlog {
+  id        Int      @id @default(autoincrement())
+  actorId   Int?
+  action    String
+  entity    String
+  entityId  String
+  diff      String?  @db.LongText
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  user      user?    @relation(fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_auditlog_actor")
+
+  @@index([actorId], map: "fk_auditlog_actor")
+  @@index([entity, entityId], map: "idx_entity")
+}
+
+model category {
+  id             Int        @id @default(autoincrement())
+  name           String
+  parentId       Int?
+  createdAt      DateTime   @default(now()) @db.DateTime(0)
+  updatedAt      DateTime   @default(now()) @db.DateTime(0)
+  deletedAt      DateTime?  @db.DateTime(0)
+  category       category?  @relation("categoryTocategory", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_cat_parent")
+  other_category category[] @relation("categoryTocategory")
+  item           item[]
+
+  @@index([parentId], map: "fk_cat_parent")
+}
+
+model company {
+  id                                             Int         @id @default(autoincrement())
+  code                                           String      @unique(map: "code")
+  name                                           String
+  type                                           String
+  taxId                                          String?
+  email                                          String?
+  phone                                          String?
+  address                                        String?
+  isActive                                       Boolean     @default(true)
+  createdAt                                      DateTime    @default(now()) @db.DateTime(0)
+  updatedAt                                      DateTime    @default(now()) @db.DateTime(0)
+  deletedAt                                      DateTime?   @db.DateTime(0)
+  pricelist                                      pricelist[]
+  txnheader_txnheader_companyIdTocompany         txnheader[] @relation("txnheader_companyIdTocompany")
+  txnheader_txnheader_customerCompanyIdTocompany txnheader[] @relation("txnheader_customerCompanyIdTocompany")
+  txnheader_txnheader_supplierCompanyIdTocompany txnheader[] @relation("txnheader_supplierCompanyIdTocompany")
+  warehouse                                      warehouse[]
+  item_item_defaultSupplierCompanyIdTocompany    item[]      @relation("item_defaultSupplierCompanyIdTocompany")
+}
+
+model importbatch {
+  id          Int         @id @default(autoincrement())
+  filename    String
+  status      String      @default("PENDING") @db.VarChar(50)
+  totalRows   Int         @default(0)
+  successRows Int         @default(0)
+  errorRows   Int         @default(0)
+  meta        String?     @db.LongText
+  createdById Int?
+  createdAt   DateTime    @default(now()) @db.DateTime(0)
+  updatedAt   DateTime    @default(now()) @db.DateTime(0)
+  user        user?       @relation(fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_importbatch_user")
+  importrow   importrow[]
+
+  @@index([createdById], map: "fk_importbatch_user")
+}
+
+model importrow {
+  id          Int         @id @default(autoincrement())
+  batchId     Int
+  rowNumber   Int
+  raw         String      @db.LongText
+  status      String      @default("PENDING") @db.VarChar(50)
+  message     String?
+  createdAt   DateTime    @default(now()) @db.DateTime(0)
+  importbatch importbatch @relation(fields: [batchId], references: [id], onUpdate: Restrict, map: "fk_importrow_batch")
+
+  @@index([batchId], map: "fk_importrow_batch")
+}
+
+model item {
+  id            Int             @id @default(autoincrement())
+  sku           String          @unique(map: "sku")
+  name          String
+  barcode       String?
+  categoryId    Int?
+  baseUomId     Int
+  brandId       Int?
+  defaultSupplierCompanyId Int?
+  minStock      Decimal?        @db.Decimal(18, 4)
+  isLotTracked  Boolean         @default(false)
+  isSerialized  Boolean         @default(false)
+  standardCost  Decimal         @default(0.000000) @db.Decimal(18, 6)
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now()) @db.DateTime(0)
+  updatedAt     DateTime        @default(now()) @db.DateTime(0)
+  deletedAt     DateTime?       @db.DateTime(0)
+  category      category?       @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_item_category")
+  uom           uom             @relation(fields: [baseUomId], references: [id], onUpdate: Restrict, map: "fk_item_uom")
+  brand         brand?          @relation(fields: [brandId], references: [id], onUpdate: Restrict, map: "fk_item_brand")
+  company       company?        @relation("item_defaultSupplierCompanyIdTocompany", fields: [defaultSupplierCompanyId], references: [id], onUpdate: Restrict, map: "fk_item_supplier")
+  pricelist     pricelist[]
+  stock         stock[]
+  stocklot      stocklot[]
+  stockmovement stockmovement[]
+  txnline       txnline[]
+
+  @@index([categoryId], map: "fk_item_category")
+  @@index([baseUomId], map: "fk_item_uom")
+  @@index([brandId], map: "fk_item_brand")
+  @@index([defaultSupplierCompanyId], map: "fk_item_supplier")
+  @@index([name], map: "idx_item_name")
+}
+
+model brand {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique(map: "brand_name")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @default(now()) @db.DateTime(0)
+  item      item[]
+}
+
+model location {
+  id                                                  Int             @id @default(autoincrement())
+  warehouseId                                         Int
+  code                                                String
+  name                                                String
+  isActive                                            Boolean         @default(true)
+  createdAt                                           DateTime        @default(now()) @db.DateTime(0)
+  updatedAt                                           DateTime        @default(now()) @db.DateTime(0)
+  deletedAt                                           DateTime?       @db.DateTime(0)
+  warehouse                                           warehouse       @relation(fields: [warehouseId], references: [id], onUpdate: Restrict, map: "fk_loc_wh")
+  stock                                               stock[]
+  stocklot                                            stocklot[]
+  stockmovement_stockmovement_dstLocationIdTolocation stockmovement[] @relation("stockmovement_dstLocationIdTolocation")
+  stockmovement_stockmovement_srcLocationIdTolocation stockmovement[] @relation("stockmovement_srcLocationIdTolocation")
+  txnline                                             txnline[]
+
+  @@unique([warehouseId, code], map: "uniq_wh_code")
+}
+
+model pricelist {
+  id         Int      @id @default(autoincrement())
+  itemId     Int
+  uomId      Int
+  price      Decimal  @db.Decimal(18, 6)
+  currency   String   @default("PHP") @db.VarChar(10)
+  customerId Int?
+  createdAt  DateTime @default(now()) @db.DateTime(0)
+  updatedAt  DateTime @default(now()) @db.DateTime(0)
+  company    company? @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_pricelist_customer")
+  item       item     @relation(fields: [itemId], references: [id], onUpdate: Restrict, map: "fk_pricelist_item")
+  uom        uom      @relation(fields: [uomId], references: [id], onUpdate: Restrict, map: "fk_pricelist_uom")
+
+  @@unique([itemId, uomId, customerId], map: "uniq_item_uom_customer")
+  @@index([customerId], map: "fk_pricelist_customer")
+  @@index([uomId], map: "fk_pricelist_uom")
+}
+
+model role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique(map: "name")
+  permissions String?  @db.LongText
+  createdAt   DateTime @default(now()) @db.DateTime(0)
+  updatedAt   DateTime @default(now()) @db.DateTime(0)
+  user        user[]
+}
+
+model stock {
+  id         Int       @id @default(autoincrement())
+  itemId     Int
+  locationId Int
+  lotId      Int?
+  quantity   Decimal   @default(0.0000) @db.Decimal(18, 4)
+  createdAt  DateTime  @default(now()) @db.DateTime(0)
+  updatedAt  DateTime  @default(now()) @db.DateTime(0)
+  item       item      @relation(fields: [itemId], references: [id], onUpdate: Restrict, map: "fk_stock_item")
+  location   location  @relation(fields: [locationId], references: [id], onUpdate: Restrict, map: "fk_stock_loc")
+  stocklot   stocklot? @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stock_lot")
+
+  @@unique([itemId, locationId, lotId], map: "uniq_item_loc_lot")
+  @@index([locationId], map: "fk_stock_loc")
+  @@index([lotId], map: "fk_stock_lot")
+}
+
+model stocklot {
+  id            Int             @id @default(autoincrement())
+  itemId        Int
+  lotNo         String
+  expiryDate    DateTime?       @db.Date
+  locationId    Int?
+  createdAt     DateTime        @default(now()) @db.DateTime(0)
+  updatedAt     DateTime        @default(now()) @db.DateTime(0)
+  stock         stock[]
+  item          item            @relation(fields: [itemId], references: [id], onUpdate: Restrict, map: "fk_stocklot_item")
+  location      location?       @relation(fields: [locationId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stocklot_loc")
+  stockmovement stockmovement[]
+  txnline       txnline[]
+
+  @@unique([itemId, lotNo], map: "uniq_item_lot")
+  @@index([locationId], map: "fk_stocklot_loc")
+}
+
+model stockmovement {
+  id                                             Int        @id @default(autoincrement())
+  itemId                                         Int
+  srcLocationId                                  Int?
+  dstLocationId                                  Int?
+  lotId                                          Int?
+  qtyIn                                          Decimal    @default(0.0000) @db.Decimal(18, 4)
+  qtyOut                                         Decimal    @default(0.0000) @db.Decimal(18, 4)
+  unitCost                                       Decimal    @default(0.000000) @db.Decimal(18, 6)
+  refHeaderId                                    Int?
+  refLineId                                      Int?
+  createdAt                                      DateTime   @default(now()) @db.DateTime(0)
+  location_stockmovement_dstLocationIdTolocation location?  @relation("stockmovement_dstLocationIdTolocation", fields: [dstLocationId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_dstloc")
+  txnheader                                      txnheader? @relation(fields: [refHeaderId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_header")
+  item                                           item       @relation(fields: [itemId], references: [id], onUpdate: Restrict, map: "fk_stockmov_item")
+  txnline                                        txnline?   @relation(fields: [refLineId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_line")
+  stocklot                                       stocklot?  @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_lot")
+  location_stockmovement_srcLocationIdTolocation location?  @relation("stockmovement_srcLocationIdTolocation", fields: [srcLocationId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_srcloc")
+
+  @@index([dstLocationId], map: "fk_stockmov_dstloc")
+  @@index([refHeaderId], map: "fk_stockmov_header")
+  @@index([refLineId], map: "fk_stockmov_line")
+  @@index([lotId], map: "fk_stockmov_lot")
+  @@index([srcLocationId], map: "fk_stockmov_srcloc")
+  @@index([itemId, createdAt], map: "idx_item_created")
+}
+
+model txnheader {
+  id                                             Int             @id @default(autoincrement())
+  docNo                                          String          @unique(map: "docNo")
+  type                                           String
+  status                                         String          @default("DRAFT")
+  companyId                                      Int?
+  warehouseFromId                                Int?
+  warehouseToId                                  Int?
+  supplierCompanyId                              Int?
+  customerCompanyId                              Int?
+  notes                                          String?
+  postedById                                     Int?
+  postedAt                                       DateTime?       @db.DateTime(0)
+  createdAt                                      DateTime        @default(now()) @db.DateTime(0)
+  updatedAt                                      DateTime        @default(now()) @db.DateTime(0)
+  stockmovement                                  stockmovement[]
+  company_txnheader_companyIdTocompany           company?        @relation("txnheader_companyIdTocompany", fields: [companyId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_txn_company")
+  company_txnheader_customerCompanyIdTocompany   company?        @relation("txnheader_customerCompanyIdTocompany", fields: [customerCompanyId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_txn_customer")
+  user                                           user?           @relation(fields: [postedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_txn_postedby")
+  company_txnheader_supplierCompanyIdTocompany   company?        @relation("txnheader_supplierCompanyIdTocompany", fields: [supplierCompanyId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_txn_supplier")
+  warehouse_txnheader_warehouseFromIdTowarehouse warehouse?      @relation("txnheader_warehouseFromIdTowarehouse", fields: [warehouseFromId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_txn_whfrom")
+  warehouse_txnheader_warehouseToIdTowarehouse   warehouse?      @relation("txnheader_warehouseToIdTowarehouse", fields: [warehouseToId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_txn_whto")
+  txnline                                        txnline[]
+
+  @@index([companyId], map: "fk_txn_company")
+  @@index([customerCompanyId], map: "fk_txn_customer")
+  @@index([postedById], map: "fk_txn_postedby")
+  @@index([supplierCompanyId], map: "fk_txn_supplier")
+  @@index([warehouseFromId], map: "fk_txn_whfrom")
+  @@index([warehouseToId], map: "fk_txn_whto")
+  @@index([type, status], map: "idx_type_status")
+}
+
+model txnline {
+  id            Int             @id @default(autoincrement())
+  headerId      Int
+  itemId        Int
+  uomId         Int
+  lotId         Int?
+  locationId    Int
+  qty           Decimal         @db.Decimal(18, 4)
+  unitCost      Decimal         @db.Decimal(18, 6)
+  remarks       String?
+  createdAt     DateTime        @default(now()) @db.DateTime(0)
+  stockmovement stockmovement[]
+  txnheader     txnheader       @relation(fields: [headerId], references: [id], onUpdate: Restrict, map: "fk_txnline_header")
+  item          item            @relation(fields: [itemId], references: [id], onUpdate: Restrict, map: "fk_txnline_item")
+  location      location        @relation(fields: [locationId], references: [id], onUpdate: Restrict, map: "fk_txnline_loc")
+  stocklot      stocklot?       @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_txnline_lot")
+  uom           uom             @relation(fields: [uomId], references: [id], onUpdate: Restrict, map: "fk_txnline_uom")
+
+  @@index([itemId], map: "fk_txnline_item")
+  @@index([locationId], map: "fk_txnline_loc")
+  @@index([lotId], map: "fk_txnline_lot")
+  @@index([uomId], map: "fk_txnline_uom")
+  @@index([headerId], map: "idx_txnline_header")
+}
+
+model uom {
+  id            Int         @id @default(autoincrement())
+  code          String      @unique(map: "code")
+  name          String
+  defaultFactor Decimal     @default(1.000000) @db.Decimal(18, 6)
+  createdAt     DateTime    @default(now()) @db.DateTime(0)
+  updatedAt     DateTime    @default(now()) @db.DateTime(0)
+  deletedAt     DateTime?   @db.DateTime(0)
+  item          item[]
+  pricelist     pricelist[]
+  txnline       txnline[]
+}
+
+model user {
+  id             Int           @id @default(autoincrement())
+  name           String
+  email          String        @unique(map: "email")
+  hashedPassword String
+  roleId         Int
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now()) @db.DateTime(0)
+  updatedAt      DateTime      @default(now()) @db.DateTime(0)
+  deletedAt      DateTime?     @db.DateTime(0)
+  auditlog       auditlog[]
+  importbatch    importbatch[]
+  txnheader      txnheader[]
+  role           role          @relation(fields: [roleId], references: [id], onUpdate: Restrict, map: "fk_user_role")
+
+  @@index([roleId], map: "fk_user_role")
+}
+
+model warehouse {
+  id                                             Int         @id @default(autoincrement())
+  companyId                                      Int
+  code                                           String
+  name                                           String
+  address                                        String?
+  isActive                                       Boolean     @default(true)
+  createdAt                                      DateTime    @default(now()) @db.DateTime(0)
+  updatedAt                                      DateTime    @default(now()) @db.DateTime(0)
+  deletedAt                                      DateTime?   @db.DateTime(0)
+  location                                       location[]
+  txnheader_txnheader_warehouseFromIdTowarehouse txnheader[] @relation("txnheader_warehouseFromIdTowarehouse")
+  txnheader_txnheader_warehouseToIdTowarehouse   txnheader[] @relation("txnheader_warehouseToIdTowarehouse")
+  company                                        company     @relation(fields: [companyId], references: [id], onUpdate: Restrict, map: "fk_wh_company")
+
+  @@unique([companyId, code], map: "uniq_company_code")
+}
