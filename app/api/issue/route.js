@@ -13,7 +13,7 @@ export async function POST(request) {
   try {
     const result = await prisma.$transaction(async (tx) => {
       // Resolve optional customer (branch)
-      let customerCompanyId: number | null = null
+      let customerCompanyId = null
       if (customerId) {
         customerCompanyId = Number(customerId)
       } else if (customerName) {

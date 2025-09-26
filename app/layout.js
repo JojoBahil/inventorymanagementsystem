@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,8 +23,20 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        
-        {children}
+        <ToastProvider>
+          {/* Global Header */}
+          <header className="bg-surface border-b border-border">
+            <div className="max-w-7xl mx-auto px-6 lg:px-8 py-5">
+              <div className="flex items-center justify-between">
+                <h1 className="text-sm font-semibold text-primary tracking-wide">SSII Inventory Management System</h1>
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-muted">Welcome to your inventory dashboard</span>
+                </div>
+              </div>
+            </div>
+          </header>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

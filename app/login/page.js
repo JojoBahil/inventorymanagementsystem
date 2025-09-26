@@ -4,10 +4,12 @@ import { useForm } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Lock, Mail } from 'lucide-react'
+import { useToast } from '@/components/ui/Toast'
 
 export default function LoginPage() {
   const { register, handleSubmit, formState: { isSubmitting } } = useForm()
   const router = useRouter()
+  const toast = useToast()
 
   const onSubmit = async (data) => {
     try {
@@ -20,30 +22,31 @@ export default function LoginPage() {
       })
 
       if (response.ok) {
+        toast.success('Login successful!')
         router.push('/dashboard')
       } else {
         const errorData = await response.json()
-        alert(errorData.error || 'Login failed')
+        toast.error(errorData.error || 'Login failed')
       }
     } catch (error) {
       console.error('Login error:', error)
-      alert('An unexpected error occurred. Please try again.')
+      toast.error('An unexpected error occurred. Please try again.')
     }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
-        <div className="card card-elevated">
+        <div className="card card-elevated p-8">
           {/* Professional Logo Section */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <div className="w-28 h-28 mx-auto mb-6">
               <Image
                 src="/logo.png"
                 alt="Second Skin Industries Logo"
-                width={32}
-                height={32}
-                className="dark:invert"
+                width={112}
+                height={112}
+                className="dark:invert rounded-xl"
               />
             </div>
             <h1 className="text-2xl font-bold text-primary mb-2">Welcome Back</h1>

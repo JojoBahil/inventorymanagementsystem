@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DataTable } from '@/components/ui/DataTable'
 import { ItemForm } from '@/components/ui/ItemForm'
 import { StatsSection } from '@/components/dashboard/StatsSection'
+import { MiniTrend } from '@/components/dashboard/MiniTrend'
 import { MovementsSection } from '@/components/dashboard/MovementsSection'
 import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Plus } from 'lucide-react'
 import clsx from 'clsx'
+import { hasPermission, PERMISSIONS } from '@/lib/permissions'
 
 // Format date as local
 const formatDate = new Intl.DateTimeFormat('en-US', {
@@ -15,112 +17,150 @@ const formatDate = new Intl.DateTimeFormat('en-US', {
 })
 
 // Table columns for recent movements
-const columns = [
-  {
-    accessorKey: 'timestamp',
-    header: 'Date/Time'
-  },
-  {
-    accessorKey: 'itemName',
-    header: 'Item'
-  },
-  {
-    accessorKey: 'locationName',
-    header: 'To Location'
-  },
-  {
-    accessorKey: 'qtyIn',
-    header: 'Qty In'
-  },
-  {
-    accessorKey: 'qtyOut',
-    header: 'Qty Out'
-  },
-  {
-    accessorKey: 'type',
-    header: 'Type'
-  }
-]
+  const columns = [
+    {
+      accessorKey: 'timestamp',
+      header: 'Date/Time'
+    },
+    {
+      accessorKey: 'itemName',
+      header: 'Item'
+    },
+    {
+      accessorKey: 'destination',
+      header: 'Destination'
+    },
+    {
+      accessorKey: 'qtyIn',
+      header: 'Qty In'
+    },
+    {
+      accessorKey: 'qtyOut',
+      header: 'Qty Out'
+    },
+    {
+      accessorKey: 'type',
+      header: 'Type'
+    }
+  ]
 
 
-function QuickActions({ onAddItem }) {
+function QuickActions({ onAddItem, user }) {
   const actions = [
     { 
       name: 'Add New Item', 
       onClick: onAddItem, 
       icon: Plus, 
       color: 'success',
-      description: 'Create a new inventory item'
+      description: 'Create a new inventory item',
+      permission: PERMISSIONS.ITEMS_CREATE
     },
     { 
-      name: 'New Receipt', 
+      name: 'Receive Stock', 
       href: '/transactions/new/grn', 
       icon: ArrowDownToLine, 
       color: 'info',
-      description: 'Record incoming inventory'
+      description: 'Record incoming inventory',
+      permission: PERMISSIONS.TRANSACTIONS_CREATE
     },
     { 
       name: 'New Issue', 
       href: '/transactions/new/issue', 
       icon: ArrowUpFromLine, 
       color: 'error',
-      description: 'Record outgoing inventory'
+      description: 'Record outgoing inventory',
+      permission: PERMISSIONS.TRANSACTIONS_CREATE
     },
   ]
 
   return (
     <div className="space-y-4">
-      {actions.map(action => (
-        action.onClick ? (
+      {actions.map(action => {
+        const hasAccess = user && hasPermission(user, action.permission)
+        const isDisabled = !hasAccess
+        
+        return action.onClick ? (
           <button
             key={action.name}
-            onClick={action.onClick}
-            className="card card-compact p-6 flex items-center hover:border-primary transition-all duration-200 group cursor-pointer w-full text-left"
+            onClick={isDisabled ? undefined : action.onClick}
+            disabled={isDisabled}
+            className={clsx(
+              "card card-compact p-6 flex items-center transition-all duration-200 group w-full text-left",
+              isDisabled 
+                ? "opacity-50 cursor-not-allowed" 
+                : "hover:border-primary cursor-pointer"
+            )}
           >
             <div className={clsx(
               'p-3 rounded-xl transition-colors',
+              isDisabled ? 'bg-muted/10' :
               action.color === 'success' ? 'bg-success/10 group-hover:bg-success/20' :
               action.color === 'info' ? 'bg-info/10 group-hover:bg-info/20' : 'bg-error/10 group-hover:bg-error/20'
             )}>
               <action.icon className={clsx(
                 'w-5 h-5',
+                isDisabled ? 'text-muted' :
                 action.color === 'success' ? 'text-success' :
                 action.color === 'info' ? 'text-info' : 'text-error'
               )} />
             </div>
             <div className="ml-4 flex-1">
-              <h3 className="font-semibold text-primary group-hover:text-primary transition-colors">
+              <h3 className={clsx(
+                "font-semibold transition-colors",
+                isDisabled ? "text-muted" : "text-primary group-hover:text-primary"
+              )}>
                 {action.name}
               </h3>
-              <p className="text-sm text-muted mt-1">{action.description}</p>
+              <p className="text-sm text-muted mt-1">
+                {isDisabled ? 'Access restricted' : action.description}
+              </p>
             </div>
-            <ChevronRight className="w-5 h-5 text-muted group-hover:text-primary transition-colors" />
+            <ChevronRight className={clsx(
+              "w-5 h-5 transition-colors",
+              isDisabled ? "text-muted" : "text-muted group-hover:text-primary"
+            )} />
           </button>
         ) : (
           <a
             key={action.name}
-            href={action.href}
-            className="card card-compact p-6 flex items-center hover:border-primary transition-all duration-200 group cursor-pointer"
+            href={isDisabled ? undefined : action.href}
+            onClick={isDisabled ? (e) => e.preventDefault() : undefined}
+            className={clsx(
+              "card card-compact p-6 flex items-center transition-all duration-200 group",
+              isDisabled 
+                ? "opacity-50 cursor-not-allowed" 
+                : "hover:border-primary cursor-pointer"
+            )}
           >
             <div className={clsx(
               'p-3 rounded-xl transition-colors',
+              isDisabled ? 'bg-muted/10' :
               action.color === 'info' ? 'bg-info/10 group-hover:bg-info/20' : 'bg-error/10 group-hover:bg-error/20'
             )}>
               <action.icon className={clsx(
                 'w-5 h-5',
+                isDisabled ? 'text-muted' :
                 action.color === 'info' ? 'text-info' : 'text-error'
               )} />
             </div>
             <div className="ml-4 flex-1">
-              <h3 className="font-semibold text-primary group-hover:text-primary transition-colors">
+              <h3 className={clsx(
+                "font-semibold transition-colors",
+                isDisabled ? "text-muted" : "text-primary group-hover:text-primary"
+              )}>
                 {action.name}
               </h3>
-              <p className="text-sm text-muted mt-1">{action.description}</p>
+              <p className="text-sm text-muted mt-1">
+                {isDisabled ? 'Access restricted' : action.description}
+              </p>
             </div>
-            <ChevronRight className="w-5 h-5 text-muted group-hover:text-primary transition-colors" />
+            <ChevronRight className={clsx(
+              "w-5 h-5 transition-colors",
+              isDisabled ? "text-muted" : "text-muted group-hover:text-primary"
+            )} />
           </a>
         )
-      ))}
+      })}
     </div>
   )
 }
@@ -147,6 +187,27 @@ function StatsLoadingSkeleton() {
 export default function DashboardPage() {
   const [showItemForm, setShowItemForm] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/user/current')
+      .then(res => res.json())
+      .then(data => {
+        if (data.user) {
+          setUser(data.user)
+        }
+      })
+      .catch(() => {
+        // Fallback for development
+        setUser({
+          name: 'Dev User',
+          email: 'dev@ssii.com',
+          role: { name: 'Administrator', permissions: '["*"]' }
+        })
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   const handleAddItem = () => {
     setShowItemForm(true)
@@ -161,14 +222,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="w-[93%] mx-auto">
-      <div className="space-y-8">
+    <div className="w-full px-6 lg:px-10">
+      <div className="space-y-10">
         {/* Professional Header */}
         <div className="animate-fade-in">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-primary mb-2">Dashboard</h1>
-              <p className="text-secondary text-lg">Welcome back! Here's what's happening with your inventory.</p>
+              <h1 className="text-4xl md:text-5xl font-bold text-primary tracking-tight mb-1">Dashboard</h1>
+              <p className="text-secondary text-lg md:text-xl">Welcome back! Here's what's happening with your inventory.</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-muted">Last updated</p>
@@ -183,12 +244,15 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Professional Main Content */}
-                <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8">
-                  <MovementsSection key={`movements-${refreshKey}`} />
+                <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-8">
+                  <div className="space-y-8">
+                    <MovementsSection key={`movements-${refreshKey}`} />
+                    <MiniTrend />
+                  </div>
 
           <div className="animate-fade-in">
-            <h2 className="text-xl font-semibold text-primary mb-6">Quick Actions</h2>
-            <QuickActions onAddItem={handleAddItem} />
+            <h2 className="text-xl font-semibold text-primary mb-4">Quick Actions</h2>
+            <QuickActions onAddItem={handleAddItem} user={user} />
           </div>
         </div>
       </div>

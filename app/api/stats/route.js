@@ -3,53 +3,93 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    // Get total stock value - simplified query
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+
+    // Current stocks with item info (cost and min stock)
     const stocks = await prisma.stock.findMany({
-      include: {
-        item: true
-      }
+      include: { item: true }
     })
 
-    const stockValue = stocks.reduce((total, stock) => {
-      return total + (Number(stock.quantity) * (Number(stock.item?.standardCost) || 0))
+    // Compute current stock value
+    const stockValue = stocks.reduce((total, s) => {
+      return total + Number(s.quantity) * (Number(s.item?.standardCost) || 0)
     }, 0)
 
-    // Get items below minimum - using correct field names
-    const itemsBelowMin = await prisma.item.findMany({
-      where: {
-        minStock: { not: null }
-      },
-      include: {
-        stock: true
-      }
+    // Build per-item on hand now
+    const onHandNowByItem = new Map()
+    for (const s of stocks) {
+      const key = s.itemId
+      onHandNowByItem.set(key, (onHandNowByItem.get(key) || 0) + Number(s.quantity))
+    }
+
+    // Items with minStock
+    const itemsWithMin = await prisma.item.findMany({
+      where: { minStock: { not: null } },
+      select: { id: true, minStock: true }
     })
 
-    // Calculate items below min in JS since we need to compare with minStock
-    const belowMinCount = itemsBelowMin.filter(item => {
-      const totalStock = item.stock.reduce((sum, stock) => sum + Number(stock.quantity), 0)
-      return totalStock < Number(item.minStock)
-    }).length
-
-    // Get today's receipts and issues
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    const todayMovements = await prisma.stockmovement.findMany({
-      where: {
-        createdAt: {
-          gte: today
+    // Movements today for trend calculations
+    const todaysMovements = await prisma.stockmovement.findMany({
+      where: { createdAt: { gte: todayStart } },
+      select: { 
+        itemId: true, 
+        qtyIn: true, 
+        qtyOut: true, 
+        unitCost: true,
+        txnheader: {
+          select: {
+            type: true,
+            customerCompanyId: true
+          }
         }
       }
     })
 
-    const receipts = todayMovements.filter(m => Number(m.qtyIn) > 0).length
-    const issues = todayMovements.filter(m => Number(m.qtyOut) > 0).length
+    // Net value moved today and today's sales income
+    const netValueToday = todaysMovements.reduce((sum, m) => {
+      return sum + Number(m.qtyIn || 0) * Number(m.unitCost || 0) - Number(m.qtyOut || 0) * Number(m.unitCost || 0)
+    }, 0)
+
+    // Calculate today's branch transfers (at cost, no profit)
+    const todaysBranchTransfers = todaysMovements.reduce((sum, m) => {
+      if (m.txnheader?.type === 'ISSUE' && m.txnheader?.customerCompanyId && m.qtyOut) {
+        return sum + Number(m.qtyOut) * Number(m.unitCost || 0)
+      }
+      return sum
+    }, 0)
+
+    // Per-item net qty today
+    const netQtyTodayByItem = new Map()
+    for (const m of todaysMovements) {
+      const net = Number(m.qtyIn || 0) - Number(m.qtyOut || 0)
+      netQtyTodayByItem.set(m.itemId, (netQtyTodayByItem.get(m.itemId) || 0) + net)
+    }
+
+    // Below-min now and at start-of-day (approx by removing today's net)
+    let belowMinNow = 0
+    let belowMinStart = 0
+    for (const it of itemsWithMin) {
+      const nowQty = onHandNowByItem.get(it.id) || 0
+      const startQty = nowQty - (netQtyTodayByItem.get(it.id) || 0)
+      if (nowQty < Number(it.minStock)) belowMinNow += 1
+      if (startQty < Number(it.minStock)) belowMinStart += 1
+    }
+
+    const receipts = todaysMovements.filter(m => Number(m.qtyIn) > 0).length
+    const issues = todaysMovements.filter(m => Number(m.qtyOut) > 0).length
+
+    const stockValueTrend = (netValueToday / Math.max(stockValue || 0, 1)) * 100
+    const itemsBelowMinTrend = ((belowMinNow - belowMinStart) / Math.max(belowMinStart || 0, 1)) * 100
 
     return NextResponse.json({
       stockValue,
-      itemsBelowMin: belowMinCount,
+      itemsBelowMin: belowMinNow,
       receipts,
-      issues
+      issues,
+      todaysBranchTransfers,
+      stockValueTrend,
+      itemsBelowMinTrend
     })
   } catch (error) {
     console.error('Error fetching stats:', error)

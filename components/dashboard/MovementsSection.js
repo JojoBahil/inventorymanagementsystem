@@ -21,8 +21,8 @@ const columns = [
     header: 'Item'
   },
   {
-    accessorKey: 'locationName',
-    header: 'To Location'
+    accessorKey: 'destination',
+    header: 'Destination'
   },
   {
     accessorKey: 'qtyIn',
@@ -48,7 +48,8 @@ async function fetchRecentMovements() {
       throw new Error('Failed to fetch movements')
     }
     
-    return await response.json()
+    const data = await response.json()
+    return data.movements || []
   } catch (error) {
     console.error('Error fetching movements:', error)
     return []

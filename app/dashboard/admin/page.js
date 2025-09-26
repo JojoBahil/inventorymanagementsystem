@@ -14,13 +14,13 @@ export default function AdminHome() {
   return (
     <div className="w-[93%] mx-auto h-100">
       <div>
-        <h1 className="text-2xl font-bold text-primary">Admin</h1>
-        <p className="text-secondary">Manage reference data</p>
+        <h1 className="text-4xl md:text-5xl font-bold text-primary tracking-tight mb-1">References</h1>
+        <p className="text-secondary text-lg md:text-xl">Manage reference data and master settings</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
         {links.map(l => (
-          <Link key={l.href} href={l.href} className="card card-compact hover:border-primary">
+          <Link key={l.href} href={l.href} className="card card-compact p-6 hover:border-primary">
             <div className="text-lg font-semibold text-primary">{l.label}</div>
             <div className="text-sm text-muted mt-2">Create and maintain {l.label.toLowerCase()}.</div>
           </Link>

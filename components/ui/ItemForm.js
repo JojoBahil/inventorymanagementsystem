@@ -4,45 +4,73 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Plus, Package, AlertTriangle } from 'lucide-react'
 import { Modal } from './Modal'
+import { useToast } from './Toast'
 import clsx from 'clsx'
 
 // Categories will be fetched from the backend
 const emptyArr = []
 const units = ['Pieces', 'Kg', 'Liters', 'Meters', 'Boxes', 'Rolls']
 
-export function ItemForm({ isOpen, onClose, onSuccess }) {
-  const { register, handleSubmit, formState: { errors }, reset } = useForm()
+export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
+  const { register, handleSubmit, formState: { errors }, reset, setValue, getValues } = useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [categories, setCategories] = useState(emptyArr)
   const [uoms, setUoms] = useState(emptyArr)
   const [brands, setBrands] = useState(emptyArr)
   const [brandInput, setBrandInput] = useState('')
   const [suppliers, setSuppliers] = useState(emptyArr)
+  const toast = useToast()
   const [supplierInput, setSupplierInput] = useState('')
 
   const onSubmit = async (data) => {
+    console.log('onSubmit called with data:', data)
+    console.log('brandInput value:', brandInput)
+    
+    // Validate brand field
+    if (!brandInput.trim()) {
+      console.log('Brand validation failed - brandInput is empty')
+      toast.error('Brand is required')
+      return
+    }
+    
+    // Ensure brand is included from the brandInput state
+    const formData = {
+      ...data,
+      brand: brandInput
+    }
+    
+    console.log('Form submitted with data:', formData)
+    console.log('About to make API request...')
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/items', {
-        method: 'POST',
+      const url = editItem ? `/api/items/${editItem.id}` : '/api/items'
+      const method = editItem ? 'PUT' : 'POST'
+      
+      console.log('Making request to:', url, 'with method:', method)
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(formData),
       })
+      
+      console.log('Response status:', response.status)
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create item')
+        throw new Error(errorData.error || `Failed to ${editItem ? 'update' : 'create'} item`)
       }
 
-      const newItem = await response.json()
-      onSuccess?.(newItem)
+      const item = await response.json()
+      onSuccess?.(item)
       reset()
+      toast.success(editItem ? 'Item updated successfully!' : 'Item created successfully!')
       onClose()
     } catch (error) {
-      console.error('Error creating item:', error)
-      alert(error.message)
+      console.error(`Error ${editItem ? 'updating' : 'creating'} item:`, error)
+      toast.error(error.message)
     } finally {
       setIsSubmitting(false)
     }
@@ -66,7 +94,10 @@ export function ItemForm({ isOpen, onClose, onSuccess }) {
 
         if (brandRes.ok) {
           const brandData = await brandRes.json()
-          setBrands(Array.isArray(brandData) ? brandData : [])
+          console.log('Fetched brands:', brandData)
+          setBrands(Array.isArray(brandData.brands) ? brandData.brands : [])
+        } else {
+          console.log('Brand API failed:', brandRes.status, brandRes.statusText)
         }
 
         if (supplierRes.ok) {
@@ -84,9 +115,39 @@ export function ItemForm({ isOpen, onClose, onSuccess }) {
     })()
   }, [isOpen])
 
+  // Populate form when editing
+  useEffect(() => {
+    if (editItem && isOpen) {
+      setValue('name', editItem.name)
+      setValue('category', editItem.category)
+      setValue('unit', editItem.uom)
+      setValue('minStock', editItem.min)
+      setValue('brand', editItem.brand)
+      setBrandInput(editItem.brand)
+      setSupplierInput('') // Supplier not available in current data
+    } else if (!editItem && isOpen) {
+      // Reset form for new item
+      reset()
+      setBrandInput('')
+      setSupplierInput('')
+    }
+  }, [editItem, isOpen, setValue, reset])
+
+  // Sync brandInput with form
+  useEffect(() => {
+    setValue('brand', brandInput)
+  }, [brandInput, setValue])
+
+  console.log('ItemForm render - isOpen:', isOpen, 'editItem:', editItem)
+  
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Item" size="lg">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <Modal isOpen={isOpen} onClose={onClose} title={editItem ? "Edit Item" : "Add New Item"} size="lg">
+      <form onSubmit={(e) => {
+        console.log('Form submit event triggered')
+        console.log('Form errors:', errors)
+        console.log('Form values:', getValues())
+        handleSubmit(onSubmit)(e)
+      }} className="space-y-6">
         {/* Basic Information */}
         <div className="space-y-4">
           <div className="flex items-center space-x-3 pb-3">
@@ -177,27 +238,10 @@ export function ItemForm({ isOpen, onClose, onSuccess }) {
             {/* <div className="p-2 bg-success/10 rounded-lg">
               ₱
             </div> */}
-            <h3 className="text-lg font-semibold text-primary">Pricing & Stock Levels</h3>
+            <h3 className="text-lg font-semibold text-primary">Stock Levels</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-primary">
-                Standard Cost
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted">₱</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...register('standardCost')}
-                  className="input pl-8"
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-primary">
                 Min Stock Level
@@ -233,25 +277,31 @@ export function ItemForm({ isOpen, onClose, onSuccess }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Brand with typeahead create */}
+            {/* Brand with dropdown and create option */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-primary">
-                Brand
+                Brand *
               </label>
-              <input
-                list="brand-options"
-                value={brandInput}
-                onChange={(e) => setBrandInput(e.target.value)}
-                className="input"
-                placeholder="Type to search or enter new brand"
-              />
-              <datalist id="brand-options">
-                {brands.map(b => (
-                  <option key={b.id} value={b.name} />
-                ))}
-              </datalist>
-              <input type="hidden" {...register('brand')} value={brandInput} readOnly />
-              <p className="text-xs text-muted">Press Enter to keep a new brand name.</p>
+              <div className="relative">
+                <input
+                  list="brand-options"
+                  value={brandInput}
+                  onChange={(e) => setBrandInput(e.target.value)}
+                  className={clsx('input', !brandInput && 'border-warning focus:border-warning')}
+                  placeholder="Type to search or enter new brand"
+                  required
+                />
+                <datalist id="brand-options">
+                  {brands.map(b => {
+                    console.log('Rendering brand option:', b.name)
+                    return <option key={b.id} value={b.name} />
+                  })}
+                </datalist>
+              </div>
+              <input type="hidden" {...register('brand', { required: 'Brand is required' })} />
+              <p className="text-xs text-muted">
+                Select from existing brands or type a new brand name to create it.
+              </p>
             </div>
 
             {/* Supplier with typeahead (from suppliers list) */}
@@ -285,20 +335,24 @@ export function ItemForm({ isOpen, onClose, onSuccess }) {
           >
             Cancel
           </button>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="btn btn-primary flex items-center"
-          >
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                onClick={(e) => {
+                  console.log('Submit button clicked')
+                  console.log('Form validation errors:', errors)
+                }}
+                className="btn btn-primary flex items-center"
+              >
             {isSubmitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                Creating...
+                {editItem ? 'Updating...' : 'Creating...'}
               </>
             ) : (
               <>
                 <Plus className="w-4 h-4 mr-2" />
-                Create Item
+                {editItem ? 'Update Item' : 'Create Item'}
               </>
             )}
           </button>

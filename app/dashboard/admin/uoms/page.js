@@ -34,22 +34,22 @@ export default function UomsAdmin() {
     <div className="w-[93%] mx-auto space-y-8">
       <div>
         <Link href="/dashboard/admin" className="btn btn-secondary inline-flex items-center">
-          <ChevronLeft className="w-4 h-4 mr-2" /> Back to Admin
+          <ChevronLeft className="w-4 h-4 mr-2" /> Back to References
         </Link>
       </div>
       <div>
-        <h1 className="text-2xl font-bold text-primary">Units of Measure</h1>
-        <p className="text-secondary">Add cm, ml, pc, tube, etc.</p>
+        <h1 className="text-4xl md:text-5xl font-bold text-primary tracking-tight mb-1">Units of Measure</h1>
+        <p className="text-secondary text-lg md:text-xl">Add cm, ml, pc, tube, etc.</p>
       </div>
 
-      <form onSubmit={add} className="card card-compact space-y-4">
+      <form onSubmit={add} className="card card-compact p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-primary mb-2">Code</label>
-            <input value={code} onChange={e => setCode(e.target.value)} className="input" placeholder="CM" />
+            <label className="block text-sm font-medium text-primary mb-2">Unit Name</label>
+            <input value={code} onChange={e => setCode(e.target.value)} className="input" placeholder="Centimeter" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-primary mb-2">Name</label>
+            <label className="block text-sm font-medium text-primary mb-2">Unit Code</label>
             <input value={name} onChange={e => setName(e.target.value)} className="input" placeholder="cm" />
           </div>
         </div>
@@ -58,7 +58,7 @@ export default function UomsAdmin() {
         </div>
       </form>
 
-      <div className="card mt-4">
+      <div className="card p-4 mt-4">
         {loading ? (
           <div className="text-muted">Loading...</div>
         ) : items.length === 0 ? (

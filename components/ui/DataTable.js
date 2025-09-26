@@ -33,7 +33,7 @@ export function DataTable({ data, columns, className, isLoading }) {
           {table.getHeaderGroups().map(headerGroup => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map(header => (
-                <th key={header.id}>
+                <th key={header.id} className="px-6 py-5">
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -50,7 +50,7 @@ export function DataTable({ data, columns, className, isLoading }) {
             table.getRowModel().rows.map(row => (
               <tr key={row.id}>
                 {row.getVisibleCells().map(cell => (
-                  <td key={cell.id}>
+                  <td key={cell.id} className="px-6 py-5">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}

@@ -30,15 +30,15 @@ export default function CustomersAdmin() {
     <div className="w-[93%] mx-auto space-y-8">
       <div>
         <Link href="/dashboard/admin" className="btn btn-secondary inline-flex items-center">
-          <ChevronLeft className="w-4 h-4 mr-2" /> Back to Admin
+          <ChevronLeft className="w-4 h-4 mr-2" /> Back to References
         </Link>
       </div>
       <div>
-        <h1 className="text-2xl font-bold text-primary">Branches (Customers)</h1>
-        <p className="text-secondary">Add, edit, or delete SSII branches.</p>
+        <h1 className="text-4xl md:text-5xl font-bold text-primary tracking-tight mb-1">Branches (Customers)</h1>
+        <p className="text-secondary text-lg md:text-xl">Add, edit, or delete SSII branches.</p>
       </div>
 
-      <form onSubmit={add} className="card card-compact space-y-4">
+      <form onSubmit={add} className="card card-compact p-6 space-y-4">
         <div>
           <label className="block text-sm font-medium text-primary mb-2">Name</label>
           <input value={name} onChange={e => setName(e.target.value)} className="input" placeholder="Branch name" />
@@ -48,7 +48,7 @@ export default function CustomersAdmin() {
         </div>
       </form>
 
-      <div className="card mt-4">
+      <div className="card p-4 mt-4">
         {loading ? (
           <div className="text-muted">Loading...</div>
         ) : items.length === 0 ? (

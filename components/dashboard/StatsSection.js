@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Package, ArrowDownToLine, ArrowUpFromLine, TrendingUp, TrendingDown } from 'lucide-react'
+import { Package, ArrowDownToLine, ArrowUpFromLine, TrendingDown } from 'lucide-react'
 import clsx from 'clsx'
 
 // Format currency as PHP (Philippine Peso)
@@ -10,44 +10,33 @@ const formatCurrency = new Intl.NumberFormat('en-PH', {
   currency: 'PHP'
 })
 
-function StatCard({ title, value, icon: Icon, color, trend, trendValue }) {
+function StatCard({ title, value, icon: Icon, color }) {
   const colorConfig = {
+    primary: {
+      icon: 'bg-primary/10 text-primary'
+    },
     success: {
-      icon: 'bg-success/10 text-success',
-      trend: trend > 0 ? 'text-success' : 'text-error'
+      icon: 'bg-success/10 text-success'
     },
     warning: {
-      icon: 'bg-warning/10 text-warning',
-      trend: trend > 0 ? 'text-success' : 'text-error'
+      icon: 'bg-warning/10 text-warning'
     },
     info: {
-      icon: 'bg-info/10 text-info',
-      trend: trend > 0 ? 'text-success' : 'text-error'
+      icon: 'bg-info/10 text-info'
     },
     error: {
-      icon: 'bg-error/10 text-error',
-      trend: trend > 0 ? 'text-success' : 'text-error'
+      icon: 'bg-error/10 text-error'
     }
   }
 
   const config = colorConfig[color]
 
   return (
-    <div className="stat-card animate-fade-in h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
+    <div className="stat-card p-6 animate-fade-in h-full flex flex-col w-full">
+      <div className="flex items-center mb-4">
         <div className={clsx('stat-card-icon', config.icon.split(' ')[0])}>
           <Icon className={clsx('w-6 h-6', config.icon.split(' ')[1])} />
         </div>
-        {trend && (
-          <div className={clsx('stat-card-trend flex items-center', config.trend)}>
-            {trend > 0 ? (
-              <TrendingUp className="w-3 h-3 mr-1" />
-            ) : (
-              <TrendingDown className="w-3 h-3 mr-1" />
-            )}
-            {Math.abs(trend)}%
-          </div>
-        )}
       </div>
       
       <div className="flex-1 flex flex-col justify-end">
@@ -71,20 +60,20 @@ async function fetchStats() {
     return await response.json()
   } catch (error) {
     console.error('Error fetching stats:', error)
-    return {
-      stockValue: 0,
-      itemsBelowMin: 0,
-      receipts: 0,
-      issues: 0
-    }
+      return {
+        stockValue: 0,
+        itemsBelowMin: 0,
+        receipts: 0,
+        issues: 0
+      }
   }
 }
 
 function StatsLoadingSkeleton() {
   return (
-    <div className="flex gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
       {[1, 2, 3, 4].map(i => (
-        <div key={i} className="stat-card flex-1">
+        <div key={i} className="stat-card p-6 flex-1 w-full">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 rounded-xl skeleton"></div>
             <div className="h-4 rounded w-12 skeleton"></div>
@@ -129,32 +118,30 @@ export function StatsSection() {
   }
   
   return (
-    <div className="flex gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
       <StatCard
         title="Total Stock Value"
         value={formatCurrency.format(stats.stockValue)}
-        icon={ArrowDownToLine}
-        color="success"
-        trend={12}
+        icon={Package}
+        color="primary"
       />
       <StatCard
         title="Items Below Min"
-        value={stats.itemsBelowMin}
-        icon={Package}
+        value={stats.itemsBelowMin.toString()}
+        icon={TrendingDown}
         color="warning"
-        trend={-5}
       />
       <StatCard
         title="Today's Receipts"
-        value={stats.receipts}
+        value={stats.receipts.toString()}
         icon={ArrowDownToLine}
-        color="info"
+        color="success"
       />
       <StatCard
         title="Today's Issues"
-        value={stats.issues}
+        value={stats.issues.toString()}
         icon={ArrowUpFromLine}
-        color="error"
+        color="info"
       />
     </div>
   )

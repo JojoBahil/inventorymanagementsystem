@@ -37,7 +37,12 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }) {
     }
   }, [isOpen, onClose])
 
-  if (!isOpen || !mounted || !container) return null
+  if (!isOpen || !mounted || !container) {
+    console.log('Modal not rendering:', { isOpen, mounted, container: !!container })
+    return null
+  }
+  
+  console.log('Modal rendering with container:', container)
 
   const sizeToMaxWidth = {
     sm: 480,   // ~max-w-md
@@ -113,5 +118,5 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }) {
     </div>
   )
 
-  return createPortal(modal, document.body)
+  return createPortal(modal, container)
 }

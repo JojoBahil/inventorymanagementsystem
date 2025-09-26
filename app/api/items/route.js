@@ -1,22 +1,30 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const includeStock = searchParams.get('includeStock') === 'true'
+    
     const items = await prisma.item.findMany({
       include: {
-        stock: {
-          include: {
-            location: true
+        category: true,
+        uom: true,
+        brand: true,
+        ...(includeStock && {
+          stock: {
+            include: {
+              location: true
+            }
           }
-        }
+        })
       },
       orderBy: {
         createdAt: 'desc'
       }
     })
 
-    return NextResponse.json(items)
+    return NextResponse.json({ items })
   } catch (error) {
     console.error('Error fetching items:', error)
     return NextResponse.json(
@@ -29,12 +37,12 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { name, description, category, unit, standardCost, minStock, maxStock, brand, supplierName } = body
+    const { name, description, category, unit, minStock, maxStock, brand, supplierName } = body
 
     // Validate required fields
-    if (!name || !unit) {
+    if (!name || !unit || !brand) {
       return NextResponse.json(
-        { error: 'Name and unit are required' },
+        { error: 'Name, unit, and brand are required' },
         { status: 400 }
       )
     }
@@ -69,11 +77,20 @@ export async function POST(request) {
       }
     }
 
-    // Resolve optional brand
+    // Resolve optional brand (create if doesn't exist)
     let brandId = null
-    if (brand) {
-      const brandRecord = await prisma.brand.findFirst({ where: { name: brand } })
-      if (brandRecord) brandId = brandRecord.id
+    if (brand && brand.trim()) {
+      let brandRecord = await prisma.brand.findFirst({ where: { name: brand.trim() } })
+      if (!brandRecord) {
+        // Create new brand if it doesn't exist
+        brandRecord = await prisma.brand.create({
+          data: {
+            name: brand.trim(),
+            isActive: true
+          }
+        })
+      }
+      brandId = brandRecord.id
     }
 
     // Resolve optional supplier by name -> company.id
@@ -94,14 +111,15 @@ export async function POST(request) {
         defaultSupplierCompanyId,
         baseUomId: uom.id,
         minStock: minStock ? parseFloat(minStock) : null,
-        standardCost: standardCost ? parseFloat(standardCost) : 0,
+        standardCost: 0, // Will be updated when stock is received
         isLotTracked: false,
         isSerialized: false,
         isActive: true
       },
       include: {
         category: true,
-        uom: true
+        uom: true,
+        brand: true
       }
     })
 

@@ -23,6 +23,20 @@ model auditlog {
   @@index([entity, entityId], map: "idx_entity")
 }
 
+model auditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  action    String
+  details   String
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([userId], map: "fk_auditlog_user")
+  @@index([createdAt], map: "idx_auditlog_created")
+}
+
 model category {
   id             Int        @id @default(autoincrement())
   name           String
@@ -321,6 +335,7 @@ model user {
   updatedAt      DateTime      @default(now()) @db.DateTime(0)
   deletedAt      DateTime?     @db.DateTime(0)
   auditlog       auditlog[]
+  auditLog       auditLog[]
   importbatch    importbatch[]
   txnheader      txnheader[]
   role           role          @relation(fields: [roleId], references: [id], onUpdate: Restrict, map: "fk_user_role")
