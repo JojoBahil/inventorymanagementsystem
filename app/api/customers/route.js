@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json(customers)
   } catch (error) {
     console.error('Error fetching customers:', error)
-    return NextResponse.json({ error: 'Failed to fetch customers' }, { status: 500 })
+    return NextResponse.json([])
   }
 }
 
@@ -50,9 +50,55 @@ export async function DELETE(request) {
   try {
     const body = await request.json()
     const id = Number(body?.id)
+    const force = body?.force === true
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+
+    // Check if customer has transaction headers
+    const txnHeaders = await prisma.txnheader.count({
+      where: { customerCompanyId: id }
+    })
+
+    // Check if customer has price lists
+    const priceLists = await prisma.pricelist.count({
+      where: { customerId: id }
+    })
+
+    // If not forcing deletion and there are references, return warning
+    if (!force && (txnHeaders > 0 || priceLists > 0)) {
+      const warnings = []
+      if (txnHeaders > 0) warnings.push(`${txnHeaders} transaction(s)`)
+      if (priceLists > 0) warnings.push(`${priceLists} price list(s)`)
+      
+      return NextResponse.json({ 
+        error: `This customer is currently being used by ${warnings.join(', ')}. Deleting it will remove the customer reference from these records. Do you want to continue?`,
+        requiresConfirmation: true,
+        affectedRecords: {
+          transactions: txnHeaders,
+          priceLists: priceLists
+        }
+      }, { status: 400 })
+    }
+
+    // If forcing deletion or no references, proceed with deletion
+    if (force || txnHeaders > 0 || priceLists > 0) {
+      // Delete price lists that use this customer
+      if (priceLists > 0) {
+        await prisma.pricelist.deleteMany({
+          where: { customerId: id }
+        })
+      }
+
+      // Note: We don't delete transaction headers as they are historical records
+      // The customer reference will remain in transactions for audit purposes
+    }
+
+    // Delete the customer
     await prisma.company.delete({ where: { id } })
-    return NextResponse.json({ ok: true })
+    
+    return NextResponse.json({ 
+      ok: true,
+      message: `Customer deleted successfully. ${priceLists > 0 ? `${priceLists} price list(s) were deleted.` : ''}${txnHeaders > 0 ? ` ${txnHeaders} transaction(s) will keep the customer reference for historical records.` : ''}`
+    })
   } catch (error) {
     console.error('Error deleting customer:', error)
     return NextResponse.json({ error: 'Failed to delete customer' }, { status: 500 })

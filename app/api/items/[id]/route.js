@@ -28,13 +28,49 @@ export async function DELETE(request, { params }) {
     }
 
     // Check if item has stock movements (transactions)
-    const hasMovements = await prisma.stockmovement.findFirst({
+    const stockMovements = await prisma.stockmovement.count({
       where: { itemId: parseInt(id) }
     })
 
-    if (hasMovements) {
+    if (stockMovements > 0) {
       return NextResponse.json(
-        { error: 'Cannot delete item with transaction history. Consider deactivating instead.' },
+        { error: `Cannot delete item. It has ${stockMovements} stock movement(s). Consider deactivating instead.` },
+        { status: 400 }
+      )
+    }
+
+    // Check if item has transaction lines
+    const txnLines = await prisma.txnline.count({
+      where: { itemId: parseInt(id) }
+    })
+
+    if (txnLines > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete item. It has ${txnLines} transaction line(s). Consider deactivating instead.` },
+        { status: 400 }
+      )
+    }
+
+    // Check if item has price lists
+    const priceLists = await prisma.pricelist.count({
+      where: { itemId: parseInt(id) }
+    })
+
+    if (priceLists > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete item. It has ${priceLists} price list(s). Please remove those price lists first.` },
+        { status: 400 }
+      )
+    }
+
+    // Check if item has stock lots
+    const stockLots = await prisma.stocklot.count({
+      where: { itemId: parseInt(id) }
+    })
+
+    if (stockLots > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete item. It has ${stockLots} stock lot(s). Please remove those stock lots first.` },
         { status: 400 }
       )
     }

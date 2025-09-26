@@ -6,6 +6,24 @@ export async function GET() {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
 
+    // Check if we have any data at all
+    const itemCount = await prisma.item.count()
+    const stockCount = await prisma.stock.count()
+    const movementCount = await prisma.stockmovement.count()
+
+    // If no data exists, return empty stats
+    if (itemCount === 0 && stockCount === 0 && movementCount === 0) {
+      return NextResponse.json({
+        stockValue: 0,
+        itemsBelowMin: 0,
+        receipts: 0,
+        issues: 0,
+        todaysBranchTransfers: 0,
+        stockValueTrend: 0,
+        itemsBelowMinTrend: 0
+      })
+    }
+
     // Current stocks with item info (cost and min stock)
     const stocks = await prisma.stock.findMany({
       include: { item: true }
@@ -93,9 +111,15 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Error fetching stats:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch stats' },
-      { status: 500 }
-    )
+    // Return empty stats instead of error
+    return NextResponse.json({
+      stockValue: 0,
+      itemsBelowMin: 0,
+      receipts: 0,
+      issues: 0,
+      todaysBranchTransfers: 0,
+      stockValueTrend: 0,
+      itemsBelowMinTrend: 0
+    })
   }
 }

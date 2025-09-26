@@ -30,15 +30,20 @@ export default async function ItemsPage({ searchParams }) {
   const items = await prisma.item.findMany({
     where,
     orderBy: { createdAt: 'desc' },
-    include: { category: true, uom: true, stock: true, brand: true },
+    include: { category: true, uom: true, brand: true, company: true },
     skip: (page - 1) * pageSize,
     take: pageSize,
   })
 
-  let rows = items.map(i => {
-    const onHand = i.stock.reduce((s, r) => s + Number(r.quantity), 0)
+  let rows = []
+  for (const i of items) {
+    // Calculate stock separately since we can't include it directly
+    const stockRecords = await prisma.stock.findMany({
+      where: { itemId: i.id }
+    })
+    const onHand = stockRecords.reduce((s, r) => s + Number(r.quantity), 0)
     const belowMin = i.minStock != null && onHand < Number(i.minStock)
-    return {
+    rows.push({
       id: i.id,
       sku: i.sku,
       name: i.name,
@@ -50,8 +55,8 @@ export default async function ItemsPage({ searchParams }) {
       cost: Number(i.standardCost || 0), // Convert Decimal to Number
       value: onHand * Number(i.standardCost || 0),
       belowMin,
-    }
-  })
+    })
+  }
 
   if (below) rows = rows.filter(r => r.belowMin)
 

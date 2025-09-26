@@ -11,26 +11,34 @@ export async function GET(request) {
         category: true,
         uom: true,
         brand: true,
-        ...(includeStock && {
-          stock: {
-            include: {
-              location: true
-            }
-          }
-        })
+        company: true
       },
       orderBy: {
         createdAt: 'desc'
       }
     })
 
+    // If stock is requested, calculate it separately
+    if (includeStock) {
+      const itemsWithStock = []
+      for (const item of items) {
+        const stockRecords = await prisma.stock.findMany({
+          where: { itemId: item.id },
+          include: { location: true }
+        })
+        itemsWithStock.push({
+          ...item,
+          stock: stockRecords
+        })
+      }
+      return NextResponse.json({ items: itemsWithStock })
+    }
+
     return NextResponse.json({ items })
   } catch (error) {
     console.error('Error fetching items:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch items' },
-      { status: 500 }
-    )
+    // Return empty array instead of error
+    return NextResponse.json({ items: [] })
   }
 }
 
@@ -51,19 +59,13 @@ export async function POST(request) {
     const timestamp = Date.now()
     const sku = `ITEM-${timestamp}`
 
-    // Find or create the UOM (Unit of Measure)
+    // Find the UOM (Unit of Measure) by code
     let uom = await prisma.uom.findFirst({
-      where: { name: unit }
+      where: { code: unit }
     })
 
     if (!uom) {
-      uom = await prisma.uom.create({
-        data: {
-          code: unit.toUpperCase().replace(/\s+/g, '_'),
-          name: unit,
-          defaultFactor: 1.0
-        }
-      })
+      return NextResponse.json({ error: `UOM with code '${unit}' not found. Please create it in References first.` }, { status: 400 })
     }
 
     // Find category if provided

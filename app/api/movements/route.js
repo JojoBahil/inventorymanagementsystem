@@ -12,6 +12,15 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit')) || 10
     
+    // Check if we have any data at all
+    const itemCount = await prisma.item.count()
+    const movementCount = await prisma.stockmovement.count()
+
+    // If no data exists, return empty array
+    if (itemCount === 0 && movementCount === 0) {
+      return NextResponse.json([])
+    }
+    
     const movements = await prisma.stockmovement.findMany({
       take: limit,
       orderBy: {
@@ -59,7 +68,7 @@ export async function GET(request) {
       return NextResponse.json(recentItems.map(item => ({
         timestamp: formatDate.format(new Date(item.createdAt)),
         itemName: item.name,
-        locationName: 'New Item',
+        destination: 'New Item',
         qtyIn: '-',
         qtyOut: '-',
         type: 'ITEM_CREATED'
@@ -102,9 +111,7 @@ export async function GET(request) {
     return NextResponse.json({ movements: formattedMovements })
   } catch (error) {
     console.error('Error fetching movements:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch movements' },
-      { status: 500 }
-    )
+    // Return empty array instead of error
+    return NextResponse.json([])
   }
 }

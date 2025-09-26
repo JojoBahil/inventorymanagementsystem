@@ -220,7 +220,7 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
             >
               <option value="">Select unit</option>
               {uoms.map(u => (
-                <option key={u.id || u.code} value={u.name}>{u.name}</option>
+                <option key={u.id || u.code} value={u.code}>{u.code} - {u.name}</option>
               ))}
             </select>
             {errors.unit && (

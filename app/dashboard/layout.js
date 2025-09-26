@@ -181,7 +181,7 @@ function NavigationSection({ pathname }) {
                   className={clsx(
                     "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                     pathname === child.href 
-                      ? "bg-primary text-white" 
+                      ? "bg-primary/10 text-primary border border-primary/20" 
                       : "text-muted hover:text-primary hover:bg-primary/5"
                   )}
                 >
@@ -226,7 +226,7 @@ function NavigationSection({ pathname }) {
                   className={clsx(
                     "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                     pathname.startsWith('/dashboard/admin') 
-                      ? "bg-primary text-white" 
+                      ? "bg-primary/10 text-primary border border-primary/20" 
                       : "text-muted hover:text-primary hover:bg-primary/5"
                   )}
                 >
@@ -240,7 +240,7 @@ function NavigationSection({ pathname }) {
                   className={clsx(
                     "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                     pathname.startsWith('/dashboard/users') 
-                      ? "bg-primary text-white" 
+                      ? "bg-primary/10 text-primary border border-primary/20" 
                       : "text-muted hover:text-primary hover:bg-primary/5"
                   )}
                 >

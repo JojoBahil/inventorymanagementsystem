@@ -8,8 +8,8 @@ function LineRow({ index, line, items, onChange, onRemove }) {
   const selectedItem = items.find(i => i.id === line.itemId)
   
   // Determine step based on UOM
-  const uomName = selectedItem?.uom?.name?.toLowerCase() || ''
-  const isDecimalUom = ['ml', 'cm', 'm', 'kg', 'g', 'l', 'liter', 'meter', 'kilogram', 'gram'].includes(uomName)
+  const uomCode = selectedItem?.uom?.code?.toLowerCase() || ''
+  const isDecimalUom = ['ml', 'cm', 'm', 'kg', 'g', 'l', 'liter', 'meter', 'kilogram', 'gram'].includes(uomCode)
   const step = isDecimalUom ? '0.0001' : '1'
   
   return (
@@ -28,7 +28,7 @@ function LineRow({ index, line, items, onChange, onRemove }) {
           Qty to Receive
           {selectedItem && (
             <span className="text-xs text-muted font-normal ml-2">
-              ({selectedItem.uom?.name || ''})
+              ({selectedItem.uom?.code || ''})
             </span>
           )}
         </label>

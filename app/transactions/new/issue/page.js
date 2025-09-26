@@ -11,8 +11,8 @@ function LineRow({ index, line, items, onChange, onRemove }) {
   const exceedsStock = requestedQty > currentStock && currentStock > 0
   
   // Determine step and precision based on UOM
-  const uomName = selectedItem?.uom?.name?.toLowerCase() || ''
-  const isDecimalUom = ['ml', 'cm', 'm', 'kg', 'g', 'l', 'liter', 'meter', 'kilogram', 'gram'].includes(uomName)
+  const uomCode = selectedItem?.uom?.code?.toLowerCase() || ''
+  const isDecimalUom = ['ml', 'cm', 'm', 'kg', 'g', 'l', 'liter', 'meter', 'kilogram', 'gram'].includes(uomCode)
   const step = isDecimalUom ? '0.0001' : '1'
   const precision = isDecimalUom ? 4 : 0
   
@@ -48,7 +48,7 @@ function LineRow({ index, line, items, onChange, onRemove }) {
           Qty to Issue
           {selectedItem && (
             <span className="text-xs text-muted font-normal ml-2">
-              (Available: {formatQuantity(currentStock)} {selectedItem.uom?.name || ''})
+              (Available: {formatQuantity(currentStock)} {selectedItem.uom?.code || ''})
             </span>
           )}
         </label>
@@ -136,8 +136,8 @@ export default function NewIssuePage() {
         const requestedQty = Number(line.qty)
         if (requestedQty > currentStock) {
           // Format quantities based on UOM
-          const uomName = item.uom?.name?.toLowerCase() || ''
-          const isDecimalUom = ['ml', 'cm', 'm', 'kg', 'g', 'l', 'liter', 'meter', 'kilogram', 'gram'].includes(uomName)
+          const uomCode = item.uom?.code?.toLowerCase() || ''
+          const isDecimalUom = ['ml', 'cm', 'm', 'kg', 'g', 'l', 'liter', 'meter', 'kilogram', 'gram'].includes(uomCode)
           const formatQty = (qty) => isDecimalUom ? qty.toFixed(4) : Math.round(qty).toString()
           
           toast.error(`Cannot issue ${formatQty(requestedQty)} of ${item.name}. Only ${formatQty(currentStock)} available.`)

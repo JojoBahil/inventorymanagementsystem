@@ -28,13 +28,17 @@ export async function GET(request) {
     const items = await prisma.item.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: { category: true, uom: true, stock: true, brand: true },
+      include: { category: true, uom: true, brand: true, company: true },
     })
 
     const rows = []
     rows.push(['SKU','Name','Brand','Category','UOM','On Hand','Min','Std Cost','Value'])
     for (const i of items) {
-      const onHand = i.stock.reduce((s, r) => s + Number(r.quantity), 0)
+      // Calculate stock separately since we can't include it directly
+      const stockRecords = await prisma.stock.findMany({
+        where: { itemId: i.id }
+      })
+      const onHand = stockRecords.reduce((s, r) => s + Number(r.quantity), 0)
       const belowMin = i.minStock != null && onHand < Number(i.minStock)
       if (below && !belowMin) continue
       const value = onHand * Number(i.standardCost || 0)
