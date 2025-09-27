@@ -4,7 +4,7 @@ import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-tabl
 import { Package } from 'lucide-react'
 import clsx from 'clsx'
 
-export function DataTable({ data, columns, className, isLoading }) {
+export function DataTable({ data, columns, className, isLoading, emptyMessage = "No data available" }) {
   const table = useReactTable({
     data,
     columns,
@@ -47,8 +47,8 @@ export function DataTable({ data, columns, className, isLoading }) {
         </thead>
         <tbody>
           {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map(row => (
-              <tr key={row.id}>
+            table.getRowModel().rows.map((row, index) => (
+              <tr key={row.original.uniqueKey || row.id || index}>
                 {row.getVisibleCells().map(cell => (
                   <td key={cell.id} className="px-6 py-5">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -61,9 +61,12 @@ export function DataTable({ data, columns, className, isLoading }) {
               <td colSpan={columns.length} className="text-center py-16">
                 <div className="flex flex-col items-center">
                   <Package className="w-16 h-16 text-muted mb-4" />
-                  <h3 className="text-lg font-semibold text-muted mb-2">No data available</h3>
+                  <h3 className="text-lg font-semibold text-muted mb-2">{emptyMessage}</h3>
                   <p className="text-sm text-muted max-w-sm text-center">
-                    Stock movements will appear here once transactions are posted.
+                    {emptyMessage === "No audit logs found" 
+                      ? "Audit logs will appear here as users perform actions in the system."
+                      : "Data will appear here once available."
+                    }
                   </p>
                 </div>
               </td>

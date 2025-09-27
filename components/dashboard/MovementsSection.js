@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { DataTable } from '@/components/ui/DataTable'
-import { Activity, RefreshCw } from 'lucide-react'
+import { Activity, RefreshCw, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 
 // Format date as local
 const formatDate = new Intl.DateTimeFormat('en-US', {
@@ -49,7 +50,8 @@ async function fetchRecentMovements() {
     }
     
     const data = await response.json()
-    return data.movements || []
+    // Handle both array format and object with movements property
+    return Array.isArray(data) ? data : (data.movements || [])
   } catch (error) {
     console.error('Error fetching movements:', error)
     return []
@@ -90,6 +92,15 @@ export function MovementsSection() {
             <Activity className="w-4 h-4 mr-2" />
             {hasActualMovements ? 'Last 10 transactions' : 'Recent items created'}
           </div>
+          {hasActualMovements && (
+            <Link
+              href="/reports/stock-movements"
+              className="btn btn-secondary btn-sm inline-flex items-center"
+            >
+              <ExternalLink className="w-4 h-4 mr-1" />
+              View All
+            </Link>
+          )}
           <button
             onClick={loadMovements}
             className="p-2 hover:bg-surface-elevated rounded-lg transition-colors"

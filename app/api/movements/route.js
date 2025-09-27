@@ -21,36 +21,44 @@ export async function GET(request) {
       return NextResponse.json([])
     }
     
+    // Get movements first, then related data separately to avoid relationship issues
     const movements = await prisma.stockmovement.findMany({
       take: limit,
       orderBy: {
         createdAt: 'desc'
-      },
-      include: {
-        item: true,
-        location_stockmovement_dstLocationIdTolocation: {
-          select: {
-            name: true
-          }
-        },
-        location_stockmovement_srcLocationIdTolocation: {
-          select: {
-            name: true
-          }
-        },
-        txnheader: {
-          select: {
-            type: true,
-            customerCompanyId: true,
-            company_txnheader_customerCompanyIdTocompany: {
-              select: {
-                name: true
-              }
-            }
-          }
-        }
       }
     })
+
+    // Get related data separately
+    const movementIds = movements.map(m => m.id)
+    const itemIds = movements.map(m => m.itemId).filter(Boolean)
+    const locationIds = [...new Set([
+      ...movements.map(m => m.srcLocationId).filter(Boolean),
+      ...movements.map(m => m.dstLocationId).filter(Boolean)
+    ])]
+    const refHeaderIds = movements.map(m => m.refHeaderId).filter(Boolean)
+
+    const [items, locations, refHeaders] = await Promise.all([
+      prisma.item.findMany({
+        where: { id: { in: itemIds } },
+        select: { id: true, name: true }
+      }),
+      prisma.location.findMany({
+        where: { id: { in: locationIds } },
+        select: { id: true, name: true }
+      }),
+      prisma.txnheader.findMany({
+        where: { id: { in: refHeaderIds } },
+        select: { 
+          id: true, 
+          type: true, 
+          customerCompanyId: true,
+          company_txnheader_customerCompanyIdTocompany: {
+            select: { name: true }
+          }
+        }
+      })
+    ])
 
     // If no movements, get recent items instead
     if (movements.length === 0) {
@@ -77,7 +85,12 @@ export async function GET(request) {
 
     // Format the data for the table
     const formattedMovements = movements.map(movement => {
-      const txnHeader = movement.txnheader
+      // Find related data
+      const item = items.find(i => i.id === movement.itemId)
+      const srcLocation = locations.find(l => l.id === movement.srcLocationId)
+      const dstLocation = locations.find(l => l.id === movement.dstLocationId)
+      const txnHeader = refHeaders.find(r => r.id === movement.refHeaderId)
+      
       const isIssue = txnHeader?.type === 'ISSUE'
       const hasCustomer = txnHeader?.customerCompanyId && txnHeader?.company_txnheader_customerCompanyIdTocompany
       
@@ -87,20 +100,20 @@ export async function GET(request) {
       
       if (displayType === 'GRN') {
         displayType = 'Received'
-        destination = movement.location_stockmovement_dstLocationIdTolocation?.name || '-'
+        destination = dstLocation?.name || '-'
       } else if (isIssue) {
         if (hasCustomer) {
           displayType = 'Transferred'
           destination = txnHeader.company_txnheader_customerCompanyIdTocompany.name
         } else {
           displayType = 'Issued'
-          destination = 'In-house'
+          destination = 'SSI HQ'
         }
       }
       
       return {
         timestamp: formatDate.format(new Date(movement.createdAt)),
-        itemName: movement.item.name,
+        itemName: item?.name || 'Unknown Item',
         destination: destination,
         qtyIn: movement.qtyIn?.toString() || '-',
         qtyOut: movement.qtyOut?.toString() || '-',

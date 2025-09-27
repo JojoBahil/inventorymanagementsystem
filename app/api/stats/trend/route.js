@@ -18,18 +18,22 @@ export async function GET() {
     start.setDate(start.getDate() - 6)
 
     // Get current stock values to calculate starting point
-    const currentStocks = await prisma.stock.findMany({
-      include: { item: true }
-    })
+    const currentStocks = await prisma.stock.findMany()
+    
+    // Manually fetch item data for each stock
+    const currentStocksWithItems = await Promise.all(currentStocks.map(async (stock) => {
+      const item = await prisma.item.findUnique({ where: { id: stock.itemId } })
+      return { ...stock, item }
+    }))
 
     // Calculate current total stock value
-    const currentStockValue = currentStocks.reduce((total, s) => {
+    const currentStockValue = currentStocksWithItems.reduce((total, s) => {
       return total + Number(s.quantity) * (Number(s.item?.standardCost) || 0)
     }, 0)
 
     // Build per-item current quantities
     const currentQuantitiesByItem = new Map()
-    for (const s of currentStocks) {
+    for (const s of currentStocksWithItems) {
       const key = s.itemId
       currentQuantitiesByItem.set(key, (currentQuantitiesByItem.get(key) || 0) + Number(s.quantity))
     }
@@ -40,41 +44,44 @@ export async function GET() {
           gte: start,
           lt: new Date(end.getTime() + 24 * 60 * 60 * 1000)
         }
-      },
-      select: { 
-        createdAt: true, 
-        qtyIn: true, 
-        qtyOut: true, 
-        unitCost: true,
-        itemId: true,
-        item: {
-          select: {
-            name: true,
-            standardCost: true,
+      }
+    })
+    
+    // Manually fetch related data for each movement
+    const movementsWithData = await Promise.all(movements.map(async (movement) => {
+      const [item, txnheader] = await Promise.all([
+        prisma.item.findUnique({ 
+          where: { id: movement.itemId },
+          include: {
             uom: {
               select: {
                 name: true
               }
             }
           }
-        },
-        txnheader: {
-          select: {
-            type: true,
-            customerCompanyId: true,
+        }),
+        movement.refHeaderId ? prisma.txnheader.findUnique({ 
+          where: { id: movement.refHeaderId },
+          include: {
             company_txnheader_customerCompanyIdTocompany: {
               select: {
                 name: true
               }
             }
           }
-        }
+        }) : null
+      ])
+      
+      return {
+        ...movement,
+        item,
+        txnheader
       }
-    })
+    }))
 
     // Group movements by day
     const movementsByDay = new Map()
-    for (const m of movements) {
+    for (const m of movementsWithData) {
       const key = toDateKey(m.createdAt)
       if (!movementsByDay.has(key)) {
         movementsByDay.set(key, [])
@@ -150,7 +157,7 @@ export async function GET() {
         // Calculate stock value for this day using standard costs
         dayStockValue = 0
         for (const [itemId, qty] of dayQuantitiesByItem) {
-          const item = currentStocks.find(s => s.itemId === itemId)?.item
+          const item = currentStocksWithItems.find(s => s.itemId === itemId)?.item
           if (item) {
             dayStockValue += qty * Number(item.standardCost || 0)
           }

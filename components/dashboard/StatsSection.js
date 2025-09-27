@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Package, ArrowDownToLine, ArrowUpFromLine, TrendingDown } from 'lucide-react'
+import { Package, ArrowDownToLine, ArrowUpFromLine, TrendingDown, ExternalLink } from 'lucide-react'
 import clsx from 'clsx'
+import Link from 'next/link'
 
 // Format currency as PHP (Philippine Peso)
 const formatCurrency = new Intl.NumberFormat('en-PH', {
@@ -10,7 +11,7 @@ const formatCurrency = new Intl.NumberFormat('en-PH', {
   currency: 'PHP'
 })
 
-function StatCard({ title, value, icon: Icon, color }) {
+function StatCard({ title, value, icon: Icon, color, href, isClickable = false }) {
   const colorConfig = {
     primary: {
       icon: 'bg-primary/10 text-primary'
@@ -31,12 +32,18 @@ function StatCard({ title, value, icon: Icon, color }) {
 
   const config = colorConfig[color]
 
-  return (
-    <div className="stat-card p-6 animate-fade-in h-full flex flex-col w-full">
-      <div className="flex items-center mb-4">
+  const cardContent = (
+    <div className={clsx(
+      'stat-card p-6 animate-fade-in h-full flex flex-col w-full',
+      isClickable && 'cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105'
+    )}>
+      <div className="flex items-center justify-between mb-4">
         <div className={clsx('stat-card-icon', config.icon.split(' ')[0])}>
           <Icon className={clsx('w-6 h-6', config.icon.split(' ')[1])} />
         </div>
+        {isClickable && (
+          <ExternalLink className="w-4 h-4 text-muted opacity-60" />
+        )}
       </div>
       
       <div className="flex-1 flex flex-col justify-end">
@@ -45,6 +52,16 @@ function StatCard({ title, value, icon: Icon, color }) {
       </div>
     </div>
   )
+
+  if (isClickable && href) {
+    return (
+      <Link href={href} className="block">
+        {cardContent}
+      </Link>
+    )
+  }
+
+  return cardContent
 }
 
 async function fetchStats() {
@@ -130,6 +147,8 @@ export function StatsSection() {
         value={stats.itemsBelowMin.toString()}
         icon={TrendingDown}
         color="warning"
+        href="/reports/low-stock"
+        isClickable={stats.itemsBelowMin > 0}
       />
       <StatCard
         title="Today's Receipts"

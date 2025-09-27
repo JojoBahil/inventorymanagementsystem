@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { getSessionUser } from '@/lib/auth'
+import { createAuditLog } from '@/app/api/audit-logs/route'
 
 // Body shape: { supplierId?, supplierName?, locationId, lines: [{ itemId, qty, unitCost }] }
 export async function POST(request) {
@@ -9,6 +11,12 @@ export async function POST(request) {
 
   if (!Array.isArray(lines) || lines.length === 0) {
     return NextResponse.json({ error: 'lines are required' }, { status: 400 })
+  }
+
+  // Get current user for audit logging
+  const sessionUser = await getSessionUser()
+  if (!sessionUser) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
@@ -90,6 +98,47 @@ export async function POST(request) {
 
       return header
     })
+
+    // Log the GRN creation with detailed item information
+    try {
+      console.log('Creating audit log for GRN:', result.id)
+      
+      // Get detailed item information for the audit log
+      const itemDetails = await Promise.all(lines.map(async (line) => {
+        const item = await prisma.item.findUnique({
+          where: { id: line.itemId },
+          include: { brand: true, category: true }
+        })
+        return {
+          itemName: item?.name || 'Unknown Item',
+          itemSku: item?.sku || 'N/A',
+          brand: item?.brand?.name || 'N/A',
+          category: item?.category?.name || 'N/A',
+          quantity: Number(line.qty),
+          unitCost: Number(line.unitCost || 0),
+          totalAmount: Number(line.qty) * Number(line.unitCost || 0)
+        }
+      }))
+      
+             await createAuditLog(
+               sessionUser.id,
+               'CREATE',
+               'GRN',
+               result.id,
+               {
+                 supplierId: supplierCompanyId,
+                 locationId,
+                 itemCount: lines.length,
+                 totalValue: lines.reduce((sum, line) => sum + (Number(line.qty) * Number(line.unitCost || 0)), 0),
+                 items: itemDetails
+               },
+               request
+             )
+      console.log('Audit log created successfully for GRN:', result.id)
+    } catch (auditError) {
+      console.error('Failed to create audit log for GRN:', auditError)
+      // Don't fail the GRN creation if audit logging fails
+    }
 
     return NextResponse.json({ ok: true, headerId: result.id })
   } catch (error) {

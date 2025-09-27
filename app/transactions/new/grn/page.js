@@ -1,8 +1,172 @@
 'use client'
 
 import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
+import { ChevronDown, Search, X } from 'lucide-react'
+
+function SearchableSelect({ options, value, onChange, placeholder, className = "" }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filteredOptions, setFilteredOptions] = useState(options)
+  const [dropdownStyle, setDropdownStyle] = useState({})
+  const dropdownRef = useRef(null)
+  const inputRef = useRef(null)
+
+  // Filter options based on search term
+  useEffect(() => {
+    if (searchTerm) {
+      const filtered = options.filter(option =>
+        option.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      setFilteredOptions(filtered)
+    } else {
+      setFilteredOptions(options)
+    }
+  }, [searchTerm, options])
+
+  // Calculate dropdown position when opened
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      const rect = dropdownRef.current.getBoundingClientRect()
+      const viewportHeight = window.innerHeight
+      const dropdownHeight = 240 // max-h-60 = 240px
+      
+      let top = rect.bottom + 4 // Default: below the input
+      let maxHeight = 240
+      
+      // If dropdown would exceed bottom of viewport, position it above
+      if (rect.bottom + dropdownHeight > viewportHeight) {
+        top = rect.top - dropdownHeight - 4
+        // If it would also exceed top, limit the height
+        if (top < 0) {
+          top = 8
+          maxHeight = viewportHeight - 16
+        }
+      }
+      
+      setDropdownStyle({
+        position: 'fixed',
+        top: `${top}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        zIndex: 9999,
+        maxHeight: `${maxHeight}px`
+      })
+    }
+  }, [isOpen])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside both the input and the dropdown
+      const isClickOnInput = dropdownRef.current && dropdownRef.current.contains(event.target)
+      const isClickOnDropdown = event.target.closest('[data-dropdown-portal]')
+      
+      if (!isClickOnInput && !isClickOnDropdown) {
+        setIsOpen(false)
+        setSearchTerm('')
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  const handleSelect = (option) => {
+    onChange(option.value)
+    setIsOpen(false)
+    setSearchTerm('')
+  }
+
+  const handleClear = () => {
+    onChange('')
+    setSearchTerm('')
+  }
+
+  const selectedOption = options.find(opt => opt.value === value)
+
+  const dropdownContent = isOpen && (
+    <div 
+      data-dropdown-portal
+      className="bg-surface border border-border rounded-lg shadow-lg overflow-hidden"
+      style={dropdownStyle}
+    >
+      <div className="p-2 border-b border-border">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted w-4 h-4" />
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-surface border border-border rounded text-foreground placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      </div>
+      <div className="overflow-y-auto" style={{ maxHeight: `${parseInt(dropdownStyle.maxHeight) - 60}px` }}>
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((option) => (
+            <div
+              key={option.value}
+              className="px-4 py-2 hover:bg-surface-elevated cursor-pointer text-foreground"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleSelect(option)
+              }}
+            >
+              {option.name}
+            </div>
+          ))
+        ) : (
+          <div className="px-4 py-2 text-muted text-center">
+            No options found
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      <div
+        className="input cursor-pointer flex items-center justify-between"
+        onClick={() => {
+          setIsOpen(!isOpen)
+          if (!isOpen) {
+            setTimeout(() => inputRef.current?.focus(), 0)
+          }
+        }}
+      >
+        <span className={selectedOption ? 'text-foreground' : 'text-muted'}>
+          {selectedOption ? selectedOption.name : placeholder}
+        </span>
+        <div className="flex items-center space-x-2">
+          {value && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClear()
+              }}
+              className="text-muted hover:text-foreground"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+          <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
+
+      {typeof window !== 'undefined' && createPortal(dropdownContent, document.body)}
+    </div>
+  )
+}
 
 function LineRow({ index, line, items, onChange, onRemove }) {
   const selectedItem = items.find(i => i.id === line.itemId)
@@ -12,16 +176,23 @@ function LineRow({ index, line, items, onChange, onRemove }) {
   const isDecimalUom = ['ml', 'cm', 'm', 'kg', 'g', 'l', 'liter', 'meter', 'kilogram', 'gram'].includes(uomCode)
   const step = isDecimalUom ? '0.0001' : '1'
   
+  const handleItemChange = (itemId) => {
+    onChange(index, { ...line, itemId: Number(itemId) || null })
+  }
+  
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
       <div className="md:col-span-5">
         <label className="block text-sm font-medium text-primary mb-1">Item</label>
-        <select className="input" value={line.itemId || ''} onChange={e => onChange(index, { ...line, itemId: Number(e.target.value) || null })}>
-          <option value="">Select item</option>
-          {items.map(i => (
-            <option key={i.id} value={i.id}>{i.name}</option>
-          ))}
-        </select>
+        <SearchableSelect
+          options={items.map(i => ({ 
+            value: i.id.toString(), 
+            name: i.name
+          }))}
+          value={line.itemId ? line.itemId.toString() : ''}
+          onChange={handleItemChange}
+          placeholder="Select item"
+        />
       </div>
       <div className="md:col-span-3">
         <label className="block text-sm font-medium text-primary mb-1">

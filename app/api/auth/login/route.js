@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { createAuditLog } from '@/app/api/audit-logs/route'
 
 export async function POST(request) {
   try {
@@ -58,17 +59,14 @@ export async function POST(request) {
     })
 
     // Log successful login
-    await prisma.auditlog.create({
-      data: {
-        actorId: user.id,
-        action: 'LOGIN',
-        entity: 'user',
-        entityId: user.id.toString(),
-        diff: 'User successfully logged in',
-        ip: request.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: request.headers.get('user-agent') || 'unknown'
-      }
-    })
+    await createAuditLog(
+      user.id,
+      'LOGIN',
+      'USER',
+      user.id,
+      { email: user.email, role: user.role.name },
+      request
+    )
 
     return NextResponse.json({ 
       success: true, 

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getSessionUser } from '@/lib/auth'
+import { createAuditLog } from '@/app/api/audit-logs/route'
 
 export async function GET(request) {
   try {
@@ -46,6 +48,12 @@ export async function POST(request) {
   try {
     const body = await request.json()
     const { name, description, category, unit, minStock, maxStock, brand, supplierName } = body
+
+    // Get current user for audit logging
+    const sessionUser = await getSessionUser()
+    if (!sessionUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     // Validate required fields
     if (!name || !unit || !brand) {
@@ -135,24 +143,24 @@ export async function POST(request) {
       // Create a default warehouse and location if none exist
       const defaultCompany = await prisma.company.findFirst()
       if (defaultCompany) {
-        const warehouse = await prisma.warehouse.create({
-          data: {
-            companyId: defaultCompany.id,
-            code: 'MAIN',
-            name: 'Main Warehouse',
-            address: 'Default Location',
-            isActive: true
-          }
-        })
+               const warehouse = await prisma.warehouse.create({
+                 data: {
+                   companyId: defaultCompany.id,
+                   code: 'MAIN',
+                   name: 'SSI HQ Warehouse',
+                   address: 'Default Location',
+                   isActive: true
+                 }
+               })
 
-        location = await prisma.location.create({
-          data: {
-            warehouseId: warehouse.id,
-            code: 'MAIN',
-            name: 'Main Location',
-            isActive: true
-          }
-        })
+               location = await prisma.location.create({
+                 data: {
+                   warehouseId: warehouse.id,
+                   code: 'MAIN',
+                   name: 'SSI HQ',
+                   isActive: true
+                 }
+               })
       }
     }
 
@@ -166,6 +174,22 @@ export async function POST(request) {
         }
       })
     }
+
+    // Log the item creation
+    await createAuditLog(
+      sessionUser.id,
+      'CREATE',
+      'ITEM',
+      item.id,
+      {
+        name: item.name,
+        sku: item.sku,
+        categoryId: item.categoryId,
+        brandId: item.brandId,
+        uomId: item.baseUomId
+      },
+      request
+    )
 
     return NextResponse.json(item, { status: 201 })
   } catch (error) {

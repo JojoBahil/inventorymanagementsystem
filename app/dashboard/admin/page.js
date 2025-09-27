@@ -29,12 +29,14 @@ export default function ReferencesPage() {
   const [formData, setFormData] = useState({})
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [confirmAction, setConfirmAction] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const toast = useToast()
 
   const referenceTypes = [
     {
       id: 'categories',
       name: 'Categories',
+      singularName: 'Category',
       icon: Tag,
       description: 'Product categories',
       fields: [
@@ -44,6 +46,7 @@ export default function ReferencesPage() {
     {
       id: 'uoms',
       name: 'Units of Measure',
+      singularName: 'Unit of Measure',
       icon: Ruler,
       description: 'Measurement units',
       fields: [
@@ -54,6 +57,7 @@ export default function ReferencesPage() {
     {
       id: 'brands',
       name: 'Brands',
+      singularName: 'Brand',
       icon: Award,
       description: 'Product brands',
       fields: [
@@ -63,6 +67,7 @@ export default function ReferencesPage() {
     {
       id: 'suppliers',
       name: 'Suppliers',
+      singularName: 'Supplier',
       icon: Truck,
       description: 'Vendor companies',
       fields: [
@@ -72,6 +77,7 @@ export default function ReferencesPage() {
     {
       id: 'customers',
       name: 'Branches',
+      singularName: 'Branch',
       icon: Building2,
       description: 'SSII branch locations',
       fields: [
@@ -145,6 +151,8 @@ export default function ReferencesPage() {
     } catch (error) {
       console.error(`Error adding ${type}:`, error)
       toast.error(`Failed to add ${referenceTypes.find(t => t.id === type)?.name}: ${error.message}`)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -171,6 +179,8 @@ export default function ReferencesPage() {
     } catch (error) {
       console.error(`Error updating ${type}:`, error)
       toast.error(`Failed to update ${referenceTypes.find(t => t.id === type)?.name}: ${error.message}`)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -285,6 +295,30 @@ export default function ReferencesPage() {
     setActiveModal(null)
     setEditingItem(null)
     setFormData({})
+    setIsSubmitting(false)
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && activeModal && !isSubmitting) {
+      e.preventDefault()
+      const type = referenceTypes.find(t => t.id === activeModal)
+      if (!type) return
+
+      const currentData = formData[activeModal] || {}
+      const hasContent = type.fields.some(field => {
+        const value = currentData[field.key]
+        return value && typeof value === 'string' && value.trim()
+      })
+
+      if (hasContent) {
+        setIsSubmitting(true)
+        if (editingItem) {
+          handleEdit(activeModal, editingItem)
+        } else {
+          handleAdd(activeModal)
+        }
+      }
+    }
   }
 
   const updateFormData = (type, field, value) => {
@@ -308,7 +342,7 @@ export default function ReferencesPage() {
     const currentData = formData[activeModal] || {}
 
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onKeyDown={handleKeyDown} tabIndex={-1}>
         <div className="bg-surface rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between p-6 border-b border-border">
             <h2 className="text-xl font-semibold text-primary">
@@ -332,8 +366,10 @@ export default function ReferencesPage() {
                   type={field.type}
                   value={currentData[field.key] || ''}
                   onChange={(e) => updateFormData(activeModal, field.key, e.target.value)}
+                  onKeyDown={handleKeyDown}
                   className="input w-full"
                   placeholder={field.placeholder}
+                  autoFocus={field.key === type.fields[0].key}
                 />
               </div>
             ))}
@@ -347,13 +383,13 @@ export default function ReferencesPage() {
               </button>
               <button
                 onClick={() => isEditing ? handleEdit(activeModal, editingItem) : handleAdd(activeModal)}
-                className="btn btn-primary"
-                disabled={!type.fields.some(field => {
+                className="btn btn-primary w-full"
+                disabled={isSubmitting || !type.fields.some(field => {
                   const value = currentData[field.key]
                   return value && typeof value === 'string' && value.trim()
                 })}
               >
-                {isEditing ? 'Update' : 'Add'} {type.name.slice(0, -1)}
+                {isSubmitting ? 'Saving...' : (isEditing ? 'Update' : 'Add')} {type.singularName}
               </button>
             </div>
           </div>
@@ -406,27 +442,27 @@ export default function ReferencesPage() {
                   items.map(item => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-2 rounded-lg hover:bg-surface-elevated/50 transition-colors"
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-primary truncate">
                           {item.name}
                         </div>
-                        {item.code && (
+                        {item.code && type.id !== 'customers' && (
                           <div className="text-xs text-muted">{item.code}</div>
                         )}
                       </div>
                       <div className="flex space-x-1">
                         <button
                           onClick={() => openModal(type.id, item)}
-                          className="p-1 text-muted hover:text-primary transition-colors"
+                          className="p-1 text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors duration-200"
                           title="Edit"
                         >
                           <Edit className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => confirmDelete(type.id, item)}
-                          className="p-1 text-muted hover:text-error transition-colors"
+                          className="p-1 text-muted hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors duration-200"
                           title="Delete"
                         >
                           <Trash2 className="w-3 h-3" />

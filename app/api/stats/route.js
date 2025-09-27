@@ -24,19 +24,23 @@ export async function GET() {
       })
     }
 
-    // Current stocks with item info (cost and min stock)
-    const stocks = await prisma.stock.findMany({
-      include: { item: true }
-    })
+    // Get stocks without complex includes to avoid relationship issues
+    const stocks = await prisma.stock.findMany()
+    
+    // Manually fetch item data for each stock
+    const stocksWithItems = await Promise.all(stocks.map(async (stock) => {
+      const item = await prisma.item.findUnique({ where: { id: stock.itemId } })
+      return { ...stock, item }
+    }))
 
     // Compute current stock value
-    const stockValue = stocks.reduce((total, s) => {
+    const stockValue = stocksWithItems.reduce((total, s) => {
       return total + Number(s.quantity) * (Number(s.item?.standardCost) || 0)
     }, 0)
 
     // Build per-item on hand now
     const onHandNowByItem = new Map()
-    for (const s of stocks) {
+    for (const s of stocksWithItems) {
       const key = s.itemId
       onHandNowByItem.set(key, (onHandNowByItem.get(key) || 0) + Number(s.quantity))
     }
@@ -49,28 +53,28 @@ export async function GET() {
 
     // Movements today for trend calculations
     const todaysMovements = await prisma.stockmovement.findMany({
-      where: { createdAt: { gte: todayStart } },
-      select: { 
-        itemId: true, 
-        qtyIn: true, 
-        qtyOut: true, 
-        unitCost: true,
-        txnheader: {
-          select: {
-            type: true,
-            customerCompanyId: true
-          }
-        }
-      }
+      where: { createdAt: { gte: todayStart } }
     })
+    
+    // Manually fetch txnheader data for each movement
+    const todaysMovementsWithTxn = await Promise.all(todaysMovements.map(async (movement) => {
+      const txnheader = movement.refHeaderId ? await prisma.txnheader.findUnique({ 
+        where: { id: movement.refHeaderId },
+        select: {
+          type: true,
+          customerCompanyId: true
+        }
+      }) : null
+      return { ...movement, txnheader }
+    }))
 
     // Net value moved today and today's sales income
-    const netValueToday = todaysMovements.reduce((sum, m) => {
+    const netValueToday = todaysMovementsWithTxn.reduce((sum, m) => {
       return sum + Number(m.qtyIn || 0) * Number(m.unitCost || 0) - Number(m.qtyOut || 0) * Number(m.unitCost || 0)
     }, 0)
 
     // Calculate today's branch transfers (at cost, no profit)
-    const todaysBranchTransfers = todaysMovements.reduce((sum, m) => {
+    const todaysBranchTransfers = todaysMovementsWithTxn.reduce((sum, m) => {
       if (m.txnheader?.type === 'ISSUE' && m.txnheader?.customerCompanyId && m.qtyOut) {
         return sum + Number(m.qtyOut) * Number(m.unitCost || 0)
       }
@@ -79,7 +83,7 @@ export async function GET() {
 
     // Per-item net qty today
     const netQtyTodayByItem = new Map()
-    for (const m of todaysMovements) {
+    for (const m of todaysMovementsWithTxn) {
       const net = Number(m.qtyIn || 0) - Number(m.qtyOut || 0)
       netQtyTodayByItem.set(m.itemId, (netQtyTodayByItem.get(m.itemId) || 0) + net)
     }
@@ -94,8 +98,8 @@ export async function GET() {
       if (startQty < Number(it.minStock)) belowMinStart += 1
     }
 
-    const receipts = todaysMovements.filter(m => Number(m.qtyIn) > 0).length
-    const issues = todaysMovements.filter(m => Number(m.qtyOut) > 0).length
+    const receipts = todaysMovementsWithTxn.filter(m => Number(m.qtyIn) > 0).length
+    const issues = todaysMovementsWithTxn.filter(m => Number(m.qtyOut) > 0).length
 
     const stockValueTrend = (netValueToday / Math.max(stockValue || 0, 1)) * 100
     const itemsBelowMinTrend = ((belowMinNow - belowMinStart) / Math.max(belowMinStart || 0, 1)) * 100

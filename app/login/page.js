@@ -93,7 +93,7 @@ export default function LoginPage() {
           {/* Professional Footer */}
           <div className="mt-8 pt-6 border-t border-border text-center">
             <p className="text-xs text-muted">
-              © 2024 Second Skin Industries Inc. All rights reserved.
+              © 2025 Second Skin Industries Inc. All rights reserved.
             </p>
           </div>
         </div>

@@ -108,6 +108,8 @@ model item {
   category                 category? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_item_category")
   company                  company?  @relation("item_defaultSupplierCompanyIdTocompany", fields: [defaultSupplierCompanyId], references: [id], onUpdate: Restrict, map: "fk_item_supplier")
   uom                      uom       @relation(fields: [baseUomId], references: [id], onUpdate: Restrict, map: "fk_item_uom")
+  stock                    stock[]
+  stockmovement            stockmovement[]
 
   @@index([categoryId], map: "fk_item_category")
   @@index([baseUomId], map: "fk_item_uom")
@@ -176,10 +178,12 @@ model stock {
   quantity   Decimal   @default(0.0000) @db.Decimal(18, 4)
   createdAt  DateTime  @default(now()) @db.DateTime(0)
   updatedAt  DateTime  @default(now()) @db.DateTime(0)
+  item       item      @relation(fields: [itemId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stock_item")
   location   location  @relation(fields: [locationId], references: [id], onUpdate: Restrict, map: "fk_stock_loc")
   stocklot   stocklot? @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stock_lot")
 
   @@unique([itemId, locationId, lotId], map: "uniq_item_loc_lot")
+  @@index([itemId], map: "fk_stock_item")
   @@index([locationId], map: "fk_stock_loc")
   @@index([lotId], map: "fk_stock_lot")
 }
@@ -213,12 +217,14 @@ model stockmovement {
   refHeaderId                                    Int?
   refLineId                                      Int?
   createdAt                                      DateTime   @default(now()) @db.DateTime(0)
+  item                                           item       @relation(fields: [itemId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_item")
   location_stockmovement_dstLocationIdTolocation location?  @relation("stockmovement_dstLocationIdTolocation", fields: [dstLocationId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_dstloc")
   txnheader                                      txnheader? @relation(fields: [refHeaderId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_header")
   txnline                                        txnline?   @relation(fields: [refLineId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_line")
   stocklot                                       stocklot?  @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_lot")
   location_stockmovement_srcLocationIdTolocation location?  @relation("stockmovement_srcLocationIdTolocation", fields: [srcLocationId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_stockmov_srcloc")
 
+  @@index([itemId], map: "fk_stockmov_item")
   @@index([dstLocationId], map: "fk_stockmov_dstloc")
   @@index([refHeaderId], map: "fk_stockmov_header")
   @@index([refLineId], map: "fk_stockmov_line")

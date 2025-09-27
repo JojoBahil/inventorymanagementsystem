@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useForm } from 'react-hook-form'
-import { Plus, Package, AlertTriangle } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Plus, Package, AlertTriangle, ChevronDown, Search, X } from 'lucide-react'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import clsx from 'clsx'
@@ -10,6 +11,191 @@ import clsx from 'clsx'
 // Categories will be fetched from the backend
 const emptyArr = []
 const units = ['Pieces', 'Kg', 'Liters', 'Meters', 'Boxes', 'Rolls']
+
+function SearchableSelect({ options, value, onChange, placeholder, className = "", allowCreate = false, onCreateNew }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filteredOptions, setFilteredOptions] = useState(options)
+  const [dropdownStyle, setDropdownStyle] = useState({})
+  const dropdownRef = useRef(null)
+  const inputRef = useRef(null)
+
+  // Filter options based on search term
+  useEffect(() => {
+    if (searchTerm) {
+      const filtered = options.filter(option =>
+        option.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      setFilteredOptions(filtered)
+    } else {
+      setFilteredOptions(options)
+    }
+  }, [searchTerm, options])
+
+  // Calculate dropdown position when opened
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      const rect = dropdownRef.current.getBoundingClientRect()
+      const viewportHeight = window.innerHeight
+      const dropdownHeight = 240 // max-h-60 = 240px
+      
+      let top = rect.bottom + 4 // Default: below the input
+      let maxHeight = 240
+      
+      // If dropdown would exceed bottom of viewport, position it above
+      if (rect.bottom + dropdownHeight > viewportHeight) {
+        top = rect.top - dropdownHeight - 4
+        // If it would also exceed top, limit the height
+        if (top < 0) {
+          top = 8
+          maxHeight = viewportHeight - 16
+        }
+      }
+      
+      setDropdownStyle({
+        position: 'fixed',
+        top: `${top}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        zIndex: 9999,
+        maxHeight: `${maxHeight}px`
+      })
+    }
+  }, [isOpen])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside both the input and the dropdown
+      const isClickOnInput = dropdownRef.current && dropdownRef.current.contains(event.target)
+      const isClickOnDropdown = event.target.closest('[data-dropdown-portal]')
+      
+      if (!isClickOnInput && !isClickOnDropdown) {
+        setIsOpen(false)
+        setSearchTerm('')
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  const handleSelect = (option) => {
+    onChange(option.value)
+    setIsOpen(false)
+    setSearchTerm('')
+  }
+
+  const handleCreateNew = () => {
+    if (allowCreate && searchTerm.trim() && onCreateNew) {
+      onCreateNew(searchTerm.trim())
+      setIsOpen(false)
+      setSearchTerm('')
+    }
+  }
+
+  const handleClear = () => {
+    onChange('')
+    setSearchTerm('')
+  }
+
+  const selectedOption = options.find(opt => opt.value === value)
+  const showCreateOption = allowCreate && searchTerm.trim() && !filteredOptions.some(opt => opt.name.toLowerCase() === searchTerm.toLowerCase())
+
+  const dropdownContent = isOpen && (
+    <div 
+      data-dropdown-portal
+      className="bg-surface border border-border rounded-lg shadow-lg overflow-hidden"
+      style={dropdownStyle}
+    >
+      <div className="p-2 border-b border-border">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted w-4 h-4" />
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-surface border border-border rounded text-foreground placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      </div>
+      <div className="overflow-y-auto" style={{ maxHeight: `${parseInt(dropdownStyle.maxHeight) - 60}px` }}>
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((option) => (
+            <div
+              key={option.value}
+              className="px-4 py-2 hover:bg-surface-elevated cursor-pointer text-foreground"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleSelect(option)
+              }}
+            >
+              {option.name}
+            </div>
+          ))
+        ) : (
+          <div className="px-4 py-2 text-muted text-center">
+            No options found
+          </div>
+        )}
+        {showCreateOption && (
+          <div
+            className="px-4 py-2 hover:bg-primary/10 cursor-pointer text-primary border-t border-border"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleCreateNew()
+            }}
+          >
+            <div className="flex items-center">
+              <Plus className="w-4 h-4 mr-2" />
+              Create "{searchTerm}"
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      <div
+        className="input cursor-pointer flex items-center justify-between"
+        onClick={() => {
+          setIsOpen(!isOpen)
+          if (!isOpen) {
+            setTimeout(() => inputRef.current?.focus(), 0)
+          }
+        }}
+      >
+        <span className={selectedOption ? 'text-foreground' : 'text-muted'}>
+          {selectedOption ? selectedOption.name : placeholder}
+        </span>
+        <div className="flex items-center space-x-2">
+          {value && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClear()
+              }}
+              className="text-muted hover:text-foreground"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+          <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
+
+      {typeof window !== 'undefined' && createPortal(dropdownContent, document.body)}
+    </div>
+  )
+}
 
 export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
   const { register, handleSubmit, formState: { errors }, reset, setValue, getValues } = useForm()
@@ -95,7 +281,7 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
         if (brandRes.ok) {
           const brandData = await brandRes.json()
           console.log('Fetched brands:', brandData)
-          setBrands(Array.isArray(brandData.brands) ? brandData.brands : [])
+          setBrands(Array.isArray(brandData) ? brandData : [])
         } else {
           console.log('Brand API failed:', brandRes.status, brandRes.statusText)
         }
@@ -167,6 +353,7 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
                 {...register('name', { required: 'Item name is required' })}
                 className={clsx('input', errors.name && 'border-error focus:border-error')}
                 placeholder="Enter item name"
+                autoComplete="off"
               />
               {errors.name && (
                 <p className="text-sm text-error flex items-center">
@@ -180,15 +367,16 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
               <label className="block text-sm font-medium text-primary">
                 Category *
               </label>
-              <select
-                {...register('category', { required: 'Category is required' })}
-                className={clsx('input', errors.category && 'border-error focus:border-error')}
-              >
-                <option value="">Select category</option>
-                {categories.map(cat => (
-                  <option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                options={categories.map(cat => ({ 
+                  value: cat.name, 
+                  name: cat.name 
+                }))}
+                value={getValues('category') || ''}
+                onChange={(value) => setValue('category', value)}
+                placeholder="Select category"
+                className={errors.category ? 'border-error focus:border-error' : ''}
+              />
               {errors.category && (
                 <p className="text-sm text-error flex items-center">
                   <AlertTriangle className="w-4 h-4 mr-1" />
@@ -214,15 +402,16 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
             <label className="block text-sm font-medium text-primary">
               Unit of Measure *
             </label>
-            <select
-              {...register('unit', { required: 'Unit is required' })}
-              className={clsx('input', errors.unit && 'border-error focus:border-error')}
-            >
-              <option value="">Select unit</option>
-              {uoms.map(u => (
-                <option key={u.id || u.code} value={u.code}>{u.code} - {u.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={uoms.map(u => ({ 
+                value: u.code, 
+                name: `${u.code} - ${u.name}` 
+              }))}
+              value={getValues('unit') || ''}
+              onChange={(value) => setValue('unit', value)}
+              placeholder="Select unit"
+              className={errors.unit ? 'border-error focus:border-error' : ''}
+            />
             {errors.unit && (
               <p className="text-sm text-error flex items-center">
                 <AlertTriangle className="w-4 h-4 mr-1" />
@@ -282,25 +471,25 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
               <label className="block text-sm font-medium text-primary">
                 Brand *
               </label>
-              <div className="relative">
-                <input
-                  list="brand-options"
-                  value={brandInput}
-                  onChange={(e) => setBrandInput(e.target.value)}
-                  className={clsx('input', !brandInput && 'border-warning focus:border-warning')}
-                  placeholder="Type to search or enter new brand"
-                  required
-                />
-                <datalist id="brand-options">
-                  {brands.map(b => {
-                    console.log('Rendering brand option:', b.name)
-                    return <option key={b.id} value={b.name} />
-                  })}
-                </datalist>
-              </div>
+              <SearchableSelect
+                options={brands.map(b => ({ 
+                  value: b.name, 
+                  name: b.name 
+                }))}
+                value={brandInput}
+                onChange={setBrandInput}
+                placeholder="Select or create brand"
+                allowCreate={true}
+                onCreateNew={(newBrand) => {
+                  setBrandInput(newBrand)
+                  // Add the new brand to the local state for immediate use
+                  setBrands(prev => [...prev, { id: Date.now(), name: newBrand }])
+                }}
+                className={!brandInput ? 'border-warning focus:border-warning' : ''}
+              />
               <input type="hidden" {...register('brand', { required: 'Brand is required' })} />
               <p className="text-xs text-muted">
-                Select from existing brands or type a new brand name to create it.
+                Select from existing brands or create a new one.
               </p>
             </div>
 
@@ -309,18 +498,15 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
               <label className="block text-sm font-medium text-primary">
                 Supplier
               </label>
-              <input
-                list="supplier-options"
+              <SearchableSelect
+                options={suppliers.map(s => ({ 
+                  value: s.name, 
+                  name: s.name 
+                }))}
                 value={supplierInput}
-                onChange={(e) => setSupplierInput(e.target.value)}
-                className="input"
-                placeholder="Type to search supplier"
+                onChange={setSupplierInput}
+                placeholder="Select supplier"
               />
-              <datalist id="supplier-options">
-                {suppliers.map(s => (
-                  <option key={s.id} value={s.name} />
-                ))}
-              </datalist>
               <input type="hidden" {...register('supplierName')} value={supplierInput} readOnly />
             </div>
           </div>

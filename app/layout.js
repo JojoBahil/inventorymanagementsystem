@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "SSII IMS",
+  title: "SSII Inventory Management System",
   description: "SSII Inventory Management System",
 };
 

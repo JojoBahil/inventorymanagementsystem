@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Package, FileText, ArrowDownToLine, ArrowUpFromLine, FileSpreadsheet, Upload, LogOut, Settings, Users } from 'lucide-react'
+import { LayoutDashboard, Package, FileText, ArrowDownToLine, ArrowUpFromLine, FileSpreadsheet, LogOut, Settings, Users } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -53,14 +53,6 @@ const getNavigation = (user) => {
     })
   }
 
-  // Add imports if user is admin
-  if (hasPermission(user, PERMISSIONS.ADMIN_VIEW)) {
-    baseNav.push({ 
-      name: 'Imports', 
-      href: '/imports', 
-      icon: Upload 
-    })
-  }
 
   return baseNav
 }
@@ -321,8 +313,10 @@ function UserSection() {
           <Settings className="w-4 h-4 mr-3" />
           Settings
         </Link>
-        <button
-          onClick={async () => {
+        <Link 
+          href="#"
+          onClick={async (e) => {
+            e.preventDefault()
             try {
               await fetch('/api/auth/signout', {
                 method: 'POST',
@@ -339,11 +333,11 @@ function UserSection() {
               window.location.href = '/login'
             }
           }}
-          className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-muted hover:text-error hover:bg-error/10 w-full text-left"
+          className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-primary hover:bg-primary/5 transition-all duration-200 w-full"
         >
           <LogOut className="w-4 h-4 mr-3" />
           Sign Out
-        </button>
+        </Link>
       </div>
     </div>
   )

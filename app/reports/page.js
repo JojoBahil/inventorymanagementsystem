@@ -36,6 +36,15 @@ export default function ReportsPage() {
       href: '/reports/low-stock',
       color: 'warning',
       features: ['Severity classification', 'Reorder recommendations', 'Alert prioritization']
+    },
+    {
+      id: 'audit-logs',
+      name: 'Audit Logs',
+      description: 'Track user activities and system changes with detailed logging',
+      icon: Clock,
+      href: '/reports/audit-logs',
+      color: 'success',
+      features: ['User activity tracking', 'Role-based access', 'Paginated view']
     }
   ]
 

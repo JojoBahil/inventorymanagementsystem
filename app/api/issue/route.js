@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { getSessionUser } from '@/lib/auth'
+import { createAuditLog } from '@/app/api/audit-logs/route'
 
 // Body: { locationId, customerId?, customerName?, lines: [{ itemId, qty }] }
 export async function POST(request) {
@@ -10,16 +12,23 @@ export async function POST(request) {
     return NextResponse.json({ error: 'lines are required' }, { status: 400 })
   }
 
+  // Get current user for audit logging
+  const sessionUser = await getSessionUser()
+  if (!sessionUser) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
+    // Resolve optional customer (branch) outside transaction for audit log
+    let customerCompanyId = null
+    if (customerId) {
+      customerCompanyId = Number(customerId)
+    } else if (customerName) {
+      const customer = await prisma.company.findFirst({ where: { name: customerName, type: 'CUSTOMER' } })
+      customerCompanyId = customer?.id ?? null
+    }
+
     const result = await prisma.$transaction(async (tx) => {
-      // Resolve optional customer (branch)
-      let customerCompanyId = null
-      if (customerId) {
-        customerCompanyId = Number(customerId)
-      } else if (customerName) {
-        const customer = await tx.company.findFirst({ where: { name: customerName, type: 'CUSTOMER' } })
-        customerCompanyId = customer?.id ?? null
-      }
       const header = await tx.txnheader.create({
         data: { docNo: `ISS-${Date.now()}`, type: 'ISSUE', status: 'POSTED', customerCompanyId }
       })
@@ -60,6 +69,7 @@ export async function POST(request) {
           data: {
             itemId: item.id,
             srcLocationId: srcLocId,
+            dstLocationId: srcLocId, // For ISSUE, destination is same as source (SSI HQ) since we removed location field
             qtyOut: new Prisma.Decimal(qty),
             unitCost: item.standardCost,
             refHeaderId: header.id,
@@ -76,6 +86,45 @@ export async function POST(request) {
 
       return header
     })
+
+    // Log the Issue creation with detailed item information
+    try {
+      // Get detailed item information for the audit log
+      const itemDetails = await Promise.all(lines.map(async (line) => {
+        const item = await prisma.item.findUnique({
+          where: { id: line.itemId },
+          include: { brand: true, category: true }
+        })
+        return {
+          itemName: item?.name || 'Unknown Item',
+          itemSku: item?.sku || 'N/A',
+          brand: item?.brand?.name || 'N/A',
+          category: item?.category?.name || 'N/A',
+          quantity: Number(line.qty),
+          unitCost: Number(item?.standardCost || 0),
+          totalAmount: Number(line.qty) * Number(item?.standardCost || 0)
+        }
+      }))
+      
+      await createAuditLog(
+        sessionUser.id,
+        'CREATE',
+        'ISSUE',
+        result.id,
+        {
+          customerId: customerCompanyId,
+          locationId,
+          itemCount: lines.length,
+          totalQuantity: lines.reduce((sum, line) => sum + Number(line.qty), 0),
+          totalValue: itemDetails.reduce((sum, item) => sum + item.totalAmount, 0),
+          items: itemDetails
+        },
+        request
+      )
+    } catch (auditError) {
+      console.error('Failed to create audit log for Issue:', auditError)
+      // Don't fail the Issue creation if audit logging fails
+    }
 
     return NextResponse.json({ ok: true, headerId: result.id })
   } catch (error) {
