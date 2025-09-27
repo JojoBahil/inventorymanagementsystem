@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const tabs = [
     { id: 'profile', name: 'Profile', icon: User },
     { id: 'security', name: 'Security', icon: Shield },
-    { id: 'audit', name: 'Audit Log', icon: History }
+    { id: 'audit', name: 'Activity Log', icon: History }
   ]
 
   return (
@@ -181,15 +181,15 @@ function AuditTab({ onOpenAuditModal }) {
   return (
     <div className="space-y-6">
       <div className="card p-6">
-        <h3 className="text-lg font-semibold text-primary mb-4">Audit Log</h3>
+        <h3 className="text-lg font-semibold text-primary mb-4">Activity Log</h3>
         <p className="text-muted mb-4">
-          View detailed logs of your activities within the system. Only important actions are recorded.
+          View your recent activity history. Shows the last 20 actions you've performed in the system.
         </p>
         <button 
           onClick={onOpenAuditModal}
           className="btn btn-primary"
         >
-          View Audit Log
+          View Activity Log
         </button>
       </div>
     </div>
@@ -337,75 +337,137 @@ function PasswordChangeModal({ isOpen, onClose }) {
 }
 
 function AuditLogModal({ isOpen, onClose }) {
-  // Mock audit log data - in real app, fetch from API
-  const auditLogs = [
-    {
-      id: 1,
-      action: 'Item Created',
-      details: 'Created item "Premium PPF Wrap"',
-      timestamp: '2024-01-15 14:30:25',
-      ipAddress: '192.168.1.100'
-    },
-    {
-      id: 2,
-      action: 'Stock Received',
-      details: 'Received 50 units of "Premium PPF Wrap" at ₱1,200.00 each',
-      timestamp: '2024-01-15 14:25:10',
-      ipAddress: '192.168.1.100'
-    },
-    {
-      id: 3,
-      action: 'Stock Issued',
-      details: 'Issued 10 units of "Premium PPF Wrap" to Second Skin Branch',
-      timestamp: '2024-01-15 14:20:45',
-      ipAddress: '192.168.1.100'
-    },
-    {
-      id: 4,
-      action: 'Password Changed',
-      details: 'User password was successfully updated',
-      timestamp: '2024-01-14 09:15:30',
-      ipAddress: '192.168.1.100'
-    },
-    {
-      id: 5,
-      action: 'Item Updated',
-      details: 'Updated item "Window Tint Film" - changed minimum stock level',
-      timestamp: '2024-01-14 08:45:20',
-      ipAddress: '192.168.1.100'
+  const [auditLogs, setAuditLogs] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchCurrentUser()
     }
-  ]
+  }, [isOpen])
+
+  const fetchCurrentUser = async () => {
+    try {
+      const res = await fetch('/api/user/current')
+      const data = await res.json()
+      if (data.user) {
+        setCurrentUser(data.user)
+        fetchUserAuditLogs(data.user.id)
+      }
+    } catch (error) {
+      console.error('Error fetching current user:', error)
+    }
+  }
+
+  const fetchUserAuditLogs = async (userId) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/audit-logs?userId=${userId}&limit=20`)
+      const data = await res.json()
+      if (data.logs) {
+        setAuditLogs(data.logs)
+      }
+    } catch (error) {
+      console.error('Error fetching audit logs:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatTimestamp = (timestamp) => {
+    try {
+      const date = new Date(timestamp)
+      if (isNaN(date.getTime())) {
+        return 'Invalid Date'
+      }
+      return date.toLocaleString()
+    } catch (error) {
+      console.error('Error formatting timestamp:', timestamp, error)
+      return 'Invalid Date'
+    }
+  }
+
+  const formatAction = (action, entity) => {
+    const actionMap = {
+      'CREATE': 'Created',
+      'UPDATE': 'Updated', 
+      'DELETE': 'Deleted',
+      'LOGIN': 'Logged In',
+      'LOGOUT': 'Logged Out',
+      'PASSWORD_CHANGE': 'Changed Password'
+    }
+    
+    const entityMap = {
+      'item': 'Item',
+      'stockmovement': 'Stock Movement',
+      'user': 'User',
+      'category': 'Category',
+      'brand': 'Brand',
+      'supplier': 'Supplier',
+      'customer': 'Customer',
+      'uom': 'Unit of Measure'
+    }
+
+    const actionText = actionMap[action] || action
+    const entityText = entityMap[entity] || entity
+    
+    return `${actionText} ${entityText}`
+  }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Audit Log" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Activity Log" size="lg">
       <div className="space-y-4">
         <div className="text-sm text-muted">
-          Showing your recent activities. Only important actions are logged.
+          Showing your last 20 activities. Only important actions are logged.
         </div>
         
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {auditLogs.map(log => (
-            <div key={log.id} className="p-4 bg-surface-elevated rounded-lg border border-border">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className="font-medium text-primary">{log.action}</span>
-                    <span className="text-xs text-muted">•</span>
-                    <span className="text-xs text-muted">{log.timestamp}</span>
-                  </div>
-                  <p className="text-sm text-secondary">{log.details}</p>
-                  <p className="text-xs text-muted mt-1">IP: {log.ipAddress}</p>
+        {loading ? (
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="p-4 bg-surface-elevated rounded-lg border border-border">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-2/3 mb-1"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/4"></div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {auditLogs.length === 0 ? (
+              <div className="text-center py-8 text-muted">
+                No activity logs found for your account.
+              </div>
+            ) : (
+              auditLogs.map(log => (
+                <div key={log.id} className="p-4 bg-surface-elevated rounded-lg border border-border">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="font-medium text-primary">
+                          {formatAction(log.action, log.entity)}
+                        </span>
+                        <span className="text-xs text-muted">•</span>
+                        <span className="text-xs text-muted">
+                          {formatTimestamp(log.timestamp)}
+                        </span>
+                      </div>
+                      {log.diff && (
+                        <p className="text-sm text-secondary">
+                          {typeof log.diff === 'string' ? log.diff : JSON.stringify(log.diff)}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted mt-1">IP: {log.ipAddress}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
         
-        <div className="text-center">
-          <button className="btn btn-secondary">
-            Load More
-          </button>
-        </div>
       </div>
     </Modal>
   )

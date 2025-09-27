@@ -29,6 +29,7 @@ export async function GET(request) {
            const skip = (page - 1) * limit
            const actionFilter = searchParams.get('action')
            const searchTerm = searchParams.get('search')
+           const userIdFilter = searchParams.get('userId') ? parseInt(searchParams.get('userId')) : null
 
     let whereClause = {}
 
@@ -43,7 +44,7 @@ export async function GET(request) {
       const managerUsers = await prisma.user.findMany({
         where: {
           role: {
-            name: { equals: 'MANAGER', mode: 'insensitive' }
+            name: { equals: 'MANAGER' }
           }
         },
         select: { id: true }
@@ -64,6 +65,23 @@ export async function GET(request) {
       }
     }
 
+    // Apply userId filter if provided (for personal activity logs)
+    // Only allow if user is admin or if they're requesting their own logs
+    if (userIdFilter && !isNaN(userIdFilter)) {
+      if (userRole === 'ADMIN' || userIdFilter === sessionUser.id) {
+        whereClause = {
+          ...whereClause,
+          actorId: userIdFilter
+        }
+      } else {
+        // Non-admin users can only view their own logs
+        whereClause = {
+          ...whereClause,
+          actorId: sessionUser.id
+        }
+      }
+    }
+
     // Apply action filter if provided
     if (actionFilter) {
       const [action, entity] = actionFilter.split('-')
@@ -79,14 +97,15 @@ export async function GET(request) {
       whereClause = {
         ...whereClause,
         OR: [
-          { action: { contains: searchTerm, mode: 'insensitive' } },
-          { entity: { contains: searchTerm, mode: 'insensitive' } },
-          { diff: { contains: searchTerm, mode: 'insensitive' } },
-          { user: { name: { contains: searchTerm, mode: 'insensitive' } } },
-          { user: { email: { contains: searchTerm, mode: 'insensitive' } } }
+          { action: { contains: searchTerm } },
+          { entity: { contains: searchTerm } },
+          { diff: { contains: searchTerm } },
+          { user: { name: { contains: searchTerm } } },
+          { user: { email: { contains: searchTerm } } }
         ]
       }
     }
+
 
     const [auditLogs, total] = await Promise.all([
       prisma.auditlog.findMany({
