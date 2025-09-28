@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ItemForm } from '@/components/ui/ItemForm'
 import { Modal } from '@/components/ui/Modal'
+import { DataTable } from '@/components/ui/DataTable'
 import { hasPermission, PERMISSIONS } from '@/lib/permissions'
 import { useToast, ConfirmModal } from '@/components/ui/Toast'
 
@@ -64,88 +65,115 @@ export function ItemsTable({ items, allBrands, allCategories, onRefresh, user })
     onRefresh?.()
   }
 
+  // Prepare data for DataTable - keep original data structure
+  const tableData = items.map(item => ({
+    ...item,
+    uniqueKey: item.id, // Add unique key for TanStack Table
+    cost: formatCurrency(item.cost),
+    value: formatCurrency(item.value),
+    min: item.min ?? '-'
+  }))
+
+  // TanStack Table column definitions
+  const columns = [
+    {
+      accessorKey: 'name',
+      header: 'Name',
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium text-primary">{row.original.name}</div>
+          {row.original.belowMin && (
+            <span className="text-xs text-error bg-error/10 px-2 py-0.5 rounded mt-1 inline-block">
+              Below min
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'brand',
+      header: 'Brand',
+    },
+    {
+      accessorKey: 'category',
+      header: 'Category',
+    },
+    {
+      accessorKey: 'uom',
+      header: 'UOM',
+    },
+    {
+      accessorKey: 'onHand',
+      header: 'On Hand',
+      cell: ({ row }) => <div className="text-right">{row.original.onHand}</div>,
+    },
+    {
+      accessorKey: 'min',
+      header: 'Min',
+      cell: ({ row }) => <div className="text-right">{row.original.min}</div>,
+    },
+    {
+      accessorKey: 'cost',
+      header: 'Std Cost',
+      cell: ({ row }) => <div className="text-right">{row.original.cost}</div>,
+    },
+    {
+      accessorKey: 'value',
+      header: 'Value',
+      cell: ({ row }) => <div className="text-right">{row.original.value}</div>,
+    },
+    ...(user && (hasPermission(user, PERMISSIONS.ITEMS_UPDATE) || hasPermission(user, PERMISSIONS.ITEMS_DELETE)) 
+      ? [{
+          id: 'actions',
+          header: 'Actions',
+          cell: ({ row }) => (
+            <div className="flex items-center justify-center gap-2">
+              <button 
+                onClick={() => viewItemDetails(row.original)}
+                className="p-1.5 text-info hover:bg-info/10 rounded transition-colors"
+                title="View Details"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+              {user && hasPermission(user, PERMISSIONS.ITEMS_UPDATE) && (
+                <button 
+                  onClick={() => editItem(row.original)}
+                  className="p-1.5 text-warning hover:bg-warning/10 rounded transition-colors"
+                  title="Edit Item"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              )}
+              {user && hasPermission(user, PERMISSIONS.ITEMS_DELETE) && (
+                <button 
+                  onClick={() => deleteItem(row.original)}
+                  className="p-1.5 text-error hover:bg-error/10 rounded transition-colors"
+                  title="Delete Item"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ),
+        }] 
+      : [])
+  ]
+
   return (
     <>
       {/* Items Table */}
-      <div className="table-container">
-        <table className="table">
-          <thead>
-            <tr>
-              <th className="px-6 py-5 text-left">Name</th>
-              <th className="px-6 py-5 text-left">Brand</th>
-              <th className="px-6 py-5 text-left">Category</th>
-              <th className="px-6 py-5 text-left">UOM</th>
-              <th className="px-6 py-5 text-right">On Hand</th>
-              <th className="px-6 py-5 text-right">Min</th>
-              <th className="px-6 py-5 text-right">Std Cost</th>
-              <th className="px-6 py-5 text-right">Value</th>
-              {(user && (hasPermission(user, PERMISSIONS.ITEMS_UPDATE) || hasPermission(user, PERMISSIONS.ITEMS_DELETE))) && (
-                <th className="px-6 py-5 text-center">Actions</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(r => (
-              <tr key={r.id} className="hover:bg-surface-elevated">
-                <td className="px-6 py-5 text-primary font-medium">
-                  {r.name}
-                  {r.belowMin && <span className="ml-2 text-xs text-error bg-error/10 px-2 py-0.5 rounded">Below min</span>}
-                </td>
-                <td className="px-6 py-5">{r.brand}</td>
-                <td className="px-6 py-5">{r.category}</td>
-                <td className="px-6 py-5">{r.uom}</td>
-                <td className="px-6 py-5 text-right">{r.onHand}</td>
-                <td className="px-6 py-5 text-right">{r.min ?? '-'}</td>
-                <td className="px-6 py-5 text-right">{formatCurrency(r.cost)}</td>
-                <td className="px-6 py-5 text-right">{formatCurrency(r.value)}</td>
-                {(user && (hasPermission(user, PERMISSIONS.ITEMS_UPDATE) || hasPermission(user, PERMISSIONS.ITEMS_DELETE))) && (
-                  <td className="px-6 py-5 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button 
-                        onClick={() => viewItemDetails(r)}
-                        className="p-1.5 text-info hover:bg-info/10 rounded transition-colors"
-                        title="View Details"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </button>
-                      {user && hasPermission(user, PERMISSIONS.ITEMS_UPDATE) && (
-                        <button 
-                          onClick={() => editItem(r)}
-                          className="p-1.5 text-warning hover:bg-warning/10 rounded transition-colors"
-                          title="Edit Item"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                      )}
-                      {user && hasPermission(user, PERMISSIONS.ITEMS_DELETE) && (
-                        <button 
-                          onClick={() => deleteItem(r)}
-                          className="p-1.5 text-error hover:bg-error/10 rounded transition-colors"
-                          title="Delete Item"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                )}
-              </tr>
-            ))}
-            {items.length === 0 && (
-              <tr>
-                <td colSpan={user && (hasPermission(user, PERMISSIONS.ITEMS_UPDATE) || hasPermission(user, PERMISSIONS.ITEMS_DELETE)) ? 9 : 8} className="text-center text-muted py-8">No items match your filters.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable 
+        data={tableData} 
+        columns={columns}
+        emptyMessage="No items match your filters."
+      />
 
       {/* Modals */}
       <ItemForm 

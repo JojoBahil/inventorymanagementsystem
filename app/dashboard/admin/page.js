@@ -344,8 +344,8 @@ export default function ReferencesPage() {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onKeyDown={handleKeyDown} tabIndex={-1}>
         <div className="bg-surface rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between p-6 border-b border-border">
-            <h2 className="text-xl font-semibold text-primary">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
+            <h2 className="text-lg sm:text-xl font-semibold text-primary">
               {isEditing ? `Edit ${type.name}` : `Add ${type.name}`}
             </h2>
             <button
@@ -356,7 +356,7 @@ export default function ReferencesPage() {
             </button>
           </div>
 
-          <div className="p-6 space-y-4">
+          <div className="p-4 sm:p-6 space-y-4">
             {type.fields.map(field => (
               <div key={field.key}>
                 <label className="block text-sm font-medium text-primary mb-2">
@@ -374,16 +374,16 @@ export default function ReferencesPage() {
               </div>
             ))}
 
-            <div className="flex justify-end space-x-3 pt-4">
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
               <button
                 onClick={closeModal}
-                className="btn btn-secondary"
+                className="btn btn-secondary order-2 sm:order-1"
               >
                 Cancel
               </button>
               <button
                 onClick={() => isEditing ? handleEdit(activeModal, editingItem) : handleAdd(activeModal)}
-                className="btn btn-primary w-full"
+                className="btn btn-primary order-1 sm:order-2 sm:w-auto"
                 disabled={isSubmitting || !type.fields.some(field => {
                   const value = currentData[field.key]
                   return value && typeof value === 'string' && value.trim()
@@ -399,70 +399,70 @@ export default function ReferencesPage() {
   }
 
   return (
-    <div className="w-full space-y-8">
+    <div className="w-full space-y-6 sm:space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-4xl md:text-5xl font-bold text-primary tracking-tight mb-1">References</h1>
-        <p className="text-secondary text-lg md:text-xl">Manage reference data and master settings</p>
+      <div className="px-2 sm:px-0">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary tracking-tight mb-1">References</h1>
+        <p className="text-secondary text-base sm:text-lg md:text-xl">Manage reference data and master settings</p>
       </div>
 
       {/* Reference Types Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6 2xl:gap-8">
         {referenceTypes.map(type => {
           const IconComponent = type.icon
           const items = data[type.id] || []
           const isLoading = loading[type.id]
 
           return (
-            <div key={type.id} className="card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <IconComponent className="w-5 h-5 text-primary" />
+            <div key={type.id} className="card p-4 sm:p-6 2xl:p-8">
+              <div className="flex items-center justify-between mb-4 2xl:mb-6">
+                <div className="flex items-center space-x-3 2xl:space-x-4 min-w-0 flex-1">
+                  <div className="p-2 2xl:p-3 bg-primary/10 rounded-lg 2xl:rounded-xl flex-shrink-0">
+                    <IconComponent className="w-4 h-4 sm:w-5 sm:h-5 2xl:w-6 2xl:h-6 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-primary">{type.name}</h3>
-                    <p className="text-sm text-muted">{type.description}</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-primary text-sm sm:text-base 2xl:text-lg truncate">{type.name}</h3>
+                    <p className="text-xs sm:text-sm 2xl:text-base text-muted truncate">{type.description}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => openModal(type.id)}
-                  className="btn btn-primary btn-sm"
+                  className="btn btn-primary btn-sm 2xl:btn-lg flex-shrink-0 ml-2"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3 h-3 sm:w-4 sm:h-4 2xl:w-5 2xl:h-5" />
                 </button>
               </div>
 
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto">
                 {isLoading ? (
-                  <div className="text-sm text-muted">Loading...</div>
+                  <div className="text-xs sm:text-sm text-muted">Loading...</div>
                 ) : items.length === 0 ? (
-                  <div className="text-sm text-muted">No {type.name.toLowerCase()} yet</div>
+                  <div className="text-xs sm:text-sm text-muted">No {type.name.toLowerCase()} yet</div>
                 ) : (
                   items.map(item => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 cursor-pointer"
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-surface-elevated transition-colors duration-200 cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-primary truncate">
+                        <div className="text-xs sm:text-sm font-medium text-primary truncate">
                           {item.name}
                         </div>
                         {item.code && type.id !== 'customers' && (
-                          <div className="text-xs text-muted">{item.code}</div>
+                          <div className="text-xs text-muted truncate">{item.code}</div>
                         )}
                       </div>
-                      <div className="flex space-x-1">
+                      <div className="flex space-x-1 flex-shrink-0">
                         <button
                           onClick={() => openModal(type.id, item)}
-                          className="p-1 text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors duration-200"
+                          className="p-1 text-muted hover:text-primary hover:bg-primary/10 rounded transition-colors duration-200"
                           title="Edit"
                         >
                           <Edit className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => confirmDelete(type.id, item)}
-                          className="p-1 text-muted hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors duration-200"
+                          className="p-1 text-muted hover:text-error hover:bg-error/10 rounded transition-colors duration-200"
                           title="Delete"
                         >
                           <Trash2 className="w-3 h-3" />

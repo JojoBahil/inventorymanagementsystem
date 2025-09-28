@@ -343,7 +343,7 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
             <h3 className="text-lg font-semibold text-primary">Basic Information</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-primary">
                 Item Name *
@@ -430,7 +430,7 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
             <h3 className="text-lg font-semibold text-primary">Stock Levels</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-primary">
                 Min Stock Level
@@ -465,7 +465,7 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
             <h3 className="text-lg font-semibold text-primary">Brand & Supplier</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Brand with dropdown and create option */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-primary">
@@ -513,11 +513,11 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end space-x-3 pt-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="btn btn-secondary"
+            className="btn btn-secondary order-2 sm:order-1"
           >
             Cancel
           </button>
@@ -528,7 +528,7 @@ export function ItemForm({ isOpen, onClose, onSuccess, editItem }) {
                   console.log('Submit button clicked')
                   console.log('Form validation errors:', errors)
                 }}
-                className="btn btn-primary flex items-center"
+                className="btn btn-primary flex items-center order-1 sm:order-2"
               >
             {isSubmitting ? (
               <>

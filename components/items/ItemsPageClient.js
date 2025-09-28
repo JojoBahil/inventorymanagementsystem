@@ -19,6 +19,7 @@ export function ItemsPageClient({
   const [showAddModal, setShowAddModal] = useState(false)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
   
   console.log('ItemsPageClient render - showAddModal:', showAddModal)
 
@@ -47,14 +48,25 @@ export function ItemsPageClient({
   }
 
   return (
-    <div className="w-[93%] mx-auto space-y-8">
+    <div className="w-full space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl md:text-5xl font-bold text-primary tracking-tight mb-1">Items</h1>
-          <p className="text-secondary text-lg md:text-xl">Inventory master list</p>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary tracking-tight mb-1">Items</h1>
+          <p className="text-secondary text-base sm:text-lg md:text-xl">Inventory master list</p>
         </div>
-        <div className="flex items-center gap-3 whitespace-nowrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          {/* Mobile Filter Toggle */}
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className="btn btn-secondary lg:hidden"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Filters
+          </button>
+          
           {user && hasPermission(user, PERMISSIONS.ITEMS_CREATE) && (
             <button onClick={() => {
               console.log('Add New Item button clicked')
@@ -63,35 +75,55 @@ export function ItemsPageClient({
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Add New Item
+              <span className="hidden sm:inline">Add New Item</span>
+              <span className="sm:hidden">Add Item</span>
             </button>
           )}
-          <a href={getExportHref()} className="btn btn-secondary">Export CSV</a>
-          <a href={getPdfExportHref()} className="btn btn-secondary">Export PDF</a>
+          <div className="flex gap-2 sm:gap-3">
+            <a href={getExportHref()} className="btn btn-secondary flex-1 sm:flex-none">
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">CSV</span>
+            </a>
+            <a href={getPdfExportHref()} className="btn btn-secondary flex-1 sm:flex-none">
+              <span className="hidden sm:inline">Export PDF</span>
+              <span className="sm:hidden">PDF</span>
+            </a>
+          </div>
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="card p-4">
-          <div className="text-sm text-muted mb-1">Total Items</div>
-          <div className="text-lg font-semibold text-primary">{kpis.totalItems}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6 mb-6 lg:mb-8">
+        <div className="card p-4 lg:p-5 xl:p-6">
+          <div className="text-sm lg:text-base text-muted mb-1 lg:mb-2">Total Items</div>
+          <div className="text-lg lg:text-xl font-semibold text-primary">{kpis.totalItems}</div>
         </div>
-        <div className="card p-4">
-          <div className="text-sm text-muted mb-1">Below Min</div>
-          <div className="text-lg font-semibold text-error">{kpis.belowMinCount}</div>
+        <div className="card p-4 lg:p-5 xl:p-6">
+          <div className="text-sm lg:text-base text-muted mb-1 lg:mb-2">Below Min</div>
+          <div className="text-lg lg:text-xl font-semibold text-error">{kpis.belowMinCount}</div>
         </div>
-        <div className="card p-4">
-          <div className="text-sm text-muted mb-1">Total Value</div>
-          <div className="text-lg font-semibold text-primary">{formatCurrency(kpis.totalValue)}</div>
+        <div className="card p-4 lg:p-5 xl:p-6 sm:col-span-2 xl:col-span-1">
+          <div className="text-sm lg:text-base text-muted mb-1 lg:mb-2">Total Value</div>
+          <div className="text-lg lg:text-xl font-semibold text-primary">{formatCurrency(kpis.totalValue)}</div>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Filters - Compact sidebar */}
-        <div className="lg:w-80 flex-shrink-0">
-          <form className="card card-compact p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-primary mb-3">Filters</h3>
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 xl:gap-8">
+        {/* Filters - Collapsible on mobile */}
+        <div className={`lg:w-72 xl:w-80 2xl:w-96 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+          <form className="card card-compact p-4 lg:p-5 xl:p-6 space-y-4 lg:space-y-5 xl:space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-primary">Filters</h3>
+              <button 
+                type="button"
+                onClick={() => setShowFilters(false)}
+                className="lg:hidden p-1 text-muted hover:text-primary"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             
             <div className="space-y-3">
               <div>
@@ -124,7 +156,12 @@ export function ItemsPageClient({
               </div>
             </div>
             
-            <button className="btn btn-primary w-full text-sm">Apply Filters</button>
+            <div className="flex gap-2">
+              <button type="button" className="btn btn-secondary flex-1 text-sm lg:hidden" onClick={() => setShowFilters(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary flex-1 text-sm">Apply Filters</button>
+            </div>
           </form>
         </div>
 
@@ -138,11 +175,33 @@ export function ItemsPageClient({
         user={user}
       />
 
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-muted">Page {page} of {totalPages} · Showing {rows.length} of {total} items</div>
-            <div className="flex gap-2">
-              <a className="btn btn-secondary" aria-disabled={page <= 1} href={page <= 1 ? undefined : getQueryUrl(page - 1)}>Prev</a>
-              <a className="btn btn-secondary" aria-disabled={page >= totalPages} href={page >= totalPages ? undefined : getQueryUrl(page + 1)}>Next</a>
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-4 gap-3">
+            <div className="text-xs sm:text-sm text-muted text-center sm:text-left">
+              Page {page} of {totalPages} · Showing {rows.length} of {total} items
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <a 
+                className={`btn btn-secondary btn-sm flex-1 sm:flex-none ${page <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                aria-disabled={page <= 1} 
+                href={page <= 1 ? undefined : getQueryUrl(page - 1)}
+              >
+                <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Prev</span>
+              </a>
+              <a 
+                className={`btn btn-secondary btn-sm flex-1 sm:flex-none ${page >= totalPages ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                aria-disabled={page >= totalPages} 
+                href={page >= totalPages ? undefined : getQueryUrl(page + 1)}
+              >
+                <span className="hidden sm:inline">Next</span>
+                <span className="sm:hidden">Next</span>
+                <svg className="w-4 h-4 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
             </div>
           </div>
         </div>

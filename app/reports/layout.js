@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Package, FileText, ArrowDownToLine, ArrowUpFromLine, FileSpreadsheet, LogOut, Settings, Users } from 'lucide-react'
+import { LayoutDashboard, Package, FileText, ArrowDownToLine, ArrowUpFromLine, FileSpreadsheet, LogOut, Settings, Users, Menu, X } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -59,14 +59,44 @@ const getNavigation = (user) => {
 
 export default function ReportsLayout({ children }) {
   const pathname = usePathname()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
     <div className="flex bg-background">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setSidebarOpen(true)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-surface border border-border rounded-lg shadow-lg"
+      >
+        <Menu className="w-5 h-5 text-primary" />
+      </button>
+
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="mobile-overlay lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Modern Sidebar */}
-      <aside className="w-72 bg-surface-elevated border-r border-border flex flex-col">
+      <aside className={clsx(
+        "w-[400px] sm:w-[400px] lg:w-[400px] 2xl:w-[450px] bg-surface-elevated border-r border-border flex flex-col transition-all duration-300",
+        "lg:relative lg:translate-x-0 lg:h-auto lg:min-h-screen",
+        "fixed top-0 left-0 h-full z-50",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        {/* Mobile Close Button */}
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden absolute top-4 right-4 p-2 text-muted hover:text-primary"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         {/* Logo Section */}
-        <div className="px-6 py-6 border-b border-border">
-          <div className="relative w-full max-w-[220px] aspect-square mx-auto rounded-xl overflow-hidden bg-black">
+        <div className="px-3 sm:px-6 py-3 sm:py-6 border-b border-border">
+          <div className="relative w-full max-w-[120px] sm:max-w-[220px] 2xl:max-w-[240px] aspect-square mx-auto rounded-xl overflow-hidden bg-black">
             <Image
               src="/logo.png"
               alt="SSII"
@@ -77,16 +107,20 @@ export default function ReportsLayout({ children }) {
           </div>
         </div>
         
-        {/* Navigation */}
-        <NavigationSection pathname={pathname} />
+        {/* Navigation - Takes remaining space */}
+        <div className="flex-1 overflow-y-auto">
+          <NavigationSection pathname={pathname} />
+        </div>
 
-        {/* User Section */}
-        <UserSection />
+        {/* User Section - Sticky to bottom */}
+        <div className="mt-auto">
+          <UserSection />
+        </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-h-screen">
-        <div className="w-full px-6 lg:px-10 py-8">
+      <main className="flex-1 flex flex-col min-h-screen lg:ml-0">
+        <div className="w-full px-4 sm:px-6 lg:px-10 2xl:px-12 py-8 pt-16 lg:pt-8">
           {children}
         </div>
       </main>
@@ -137,8 +171,8 @@ function NavigationSection({ pathname }) {
   const navigation = getNavigation(user)
 
   return (
-    <nav className="flex-1 p-6">
-      <div className="space-y-6">
+    <nav className="flex-1 p-3 sm:p-6 2xl:p-8">
+      <div className="space-y-3 sm:space-y-6 2xl:space-y-8">
         {/* Main Navigation */}
         <div className="space-y-3">
           <div className="text-xs font-semibold text-muted uppercase tracking-wider px-3">Main</div>
@@ -148,7 +182,7 @@ function NavigationSection({ pathname }) {
                 key={item.name}
                 href={item.href}
                 className={clsx(
-                  "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                  "flex items-center px-2 sm:px-3 2xl:px-4 py-2 sm:py-2.5 2xl:py-3 rounded-lg text-xs sm:text-sm 2xl:text-base font-medium transition-all duration-200",
                   pathname === item.href 
                     ? "bg-primary/10 text-primary border border-primary/20" 
                     : "text-muted hover:text-primary hover:bg-primary/5"
@@ -171,7 +205,7 @@ function NavigationSection({ pathname }) {
                   key={child.name}
                   href={child.href}
                   className={clsx(
-                    "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                    "flex items-center px-2 sm:px-3 2xl:px-4 py-2 sm:py-2.5 2xl:py-3 rounded-lg text-xs sm:text-sm 2xl:text-base font-medium transition-all duration-200",
                     pathname === child.href 
                       ? "bg-primary/10 text-primary border border-primary/20" 
                       : "text-muted hover:text-primary hover:bg-primary/5"
@@ -194,7 +228,7 @@ function NavigationSection({ pathname }) {
                 key={item.name}
                 href={item.href}
                 className={clsx(
-                  "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                  "flex items-center px-2 sm:px-3 2xl:px-4 py-2 sm:py-2.5 2xl:py-3 rounded-lg text-xs sm:text-sm 2xl:text-base font-medium transition-all duration-200",
                   pathname === item.href 
                     ? "bg-primary/10 text-primary border border-primary/20" 
                     : "text-muted hover:text-primary hover:bg-primary/5"
@@ -216,7 +250,7 @@ function NavigationSection({ pathname }) {
                 <Link
                   href="/dashboard/admin"
                   className={clsx(
-                    "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                    "flex items-center px-2 sm:px-3 2xl:px-4 py-2 sm:py-2.5 2xl:py-3 rounded-lg text-xs sm:text-sm 2xl:text-base font-medium transition-all duration-200",
                     pathname.startsWith('/dashboard/admin') 
                       ? "bg-primary/10 text-primary border border-primary/20" 
                       : "text-muted hover:text-primary hover:bg-primary/5"
@@ -230,7 +264,7 @@ function NavigationSection({ pathname }) {
                 <Link
                   href="/dashboard/users"
                   className={clsx(
-                    "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                    "flex items-center px-2 sm:px-3 2xl:px-4 py-2 sm:py-2.5 2xl:py-3 rounded-lg text-xs sm:text-sm 2xl:text-base font-medium transition-all duration-200",
                     pathname.startsWith('/dashboard/users') 
                       ? "bg-primary/10 text-primary border border-primary/20" 
                       : "text-muted hover:text-primary hover:bg-primary/5"
@@ -297,14 +331,14 @@ function UserSection() {
   const initials = user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'DU'
 
   return (
-    <div className="p-6 border-t border-border">
-      <div className="flex items-center space-x-3 mb-4">
-        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-          <span className="text-sm font-semibold text-primary">{initials}</span>
+    <div className="p-3 sm:p-6 2xl:p-8 border-t border-border sidebar-user-section">
+      <div className="flex items-center space-x-2 sm:space-x-3 2xl:space-x-4 mb-3 sm:mb-4 2xl:mb-6">
+        <div className="w-7 h-7 sm:w-10 sm:h-10 2xl:w-12 2xl:h-12 bg-primary/10 rounded-lg sm:rounded-xl flex items-center justify-center border border-primary/20 flex-shrink-0">
+          <span className="text-xs sm:text-sm 2xl:text-base font-semibold text-primary">{initials}</span>
         </div>
-        <div>
-          <p className="text-sm font-medium text-primary">{user?.name || 'Dev User'}</p>
-          <p className="text-xs text-muted">{user?.role?.name || 'Administrator'}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs sm:text-sm 2xl:text-base font-medium text-primary truncate">{user?.name || 'Dev User'}</p>
+          <p className="text-xs 2xl:text-sm text-muted truncate">{user?.role?.name || 'Administrator'}</p>
         </div>
       </div>
       
